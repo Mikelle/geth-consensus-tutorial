@@ -14,7 +14,14 @@
     "terminalTotalDifficulty": 0,
     "terminalTotalDifficultyPassed": true,
     "shanghaiTime": 0,
-    "cancunTime": 0
+    "cancunTime": 0,
+    "blobSchedule": {
+      "cancun": {
+        "target": 3,
+        "max": 6,
+        "baseFeeUpdateFraction": 3338477
+      }
+    }
   },
   "alloc": {
     "0x123463a4b065722e99115d6c222f267d9cabb524": {

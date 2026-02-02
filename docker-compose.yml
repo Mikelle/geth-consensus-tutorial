@@ -3,7 +3,7 @@ version: "3.8"
 services:
   # Geth in dev mode with Engine API enabled
   geth:
-    image: ethereum/client-go:v1.14.12
+    image: ethereum/client-go:v1.16.8
     container_name: geth
     entrypoint: ["/bin/sh", "/scripts/geth-entrypoint.sh"]
     ports:
