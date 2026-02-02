@@ -70,7 +70,7 @@ Height H
 │  │ Proposer calls PrepareProposal()                        ││
 │  │   1. ForkchoiceUpdatedV3 (start building)               ││
 │  │   2. Wait 300ms for transactions                        ││
-│  │   3. GetPayloadV3 (retrieve built block)                ││
+│  │   3. GetPayloadV5 (retrieve built block)                ││
 │  │   4. Wrap payload in CometBFT transaction               ││
 │  └─────────────────────────────────────────────────────────┘│
 └─────────────────────────────────────────────────────────────┘
@@ -102,7 +102,7 @@ Height H
 │  FINALIZATION                                                │
 │  ┌─────────────────────────────────────────────────────────┐│
 │  │ All nodes call FinalizeBlock()                          ││
-│  │   1. NewPayloadV3 (submit to Geth)                      ││
+│  │   1. NewPayloadV4 (submit to Geth)                      ││
 │  │   2. ForkchoiceUpdatedV3 (set as head)                  ││
 │  │   3. Save execution head to DB                          ││
 │  │   4. Block is FINAL - no reorgs possible                ││
@@ -130,7 +130,7 @@ func (app *GethConsensusApp) PrepareProposal(ctx context.Context, req *abcitypes
     time.Sleep(300 * time.Millisecond)
 
     // 3. Retrieve the built payload
-    payload, _ := app.engineCl.GetPayloadV3(ctx, *response.PayloadID)
+    payload, _ := app.engineCl.GetPayloadV5(ctx, *response.PayloadID)
 
     // 4. Wrap in CometBFT transaction format
     return &abcitypes.ResponsePrepareProposal{
@@ -168,7 +168,7 @@ Called after consensus is reached to execute the block:
 ```go
 func (app *GethConsensusApp) FinalizeBlock(ctx context.Context, req *abcitypes.RequestFinalizeBlock) (*abcitypes.ResponseFinalizeBlock, error) {
     // 1. Submit payload to Geth
-    status, _ := app.engineCl.NewPayloadV3(ctx, payload, hashes, beaconRoot)
+    status, _ := app.engineCl.NewPayloadV4(ctx, payload, hashes, beaconRoot)
 
     // 2. Update fork choice
     fcs := engine.ForkchoiceStateV1{
@@ -378,7 +378,7 @@ PrepareProposal           ProcessProposal           FinalizeBlock
 | Finality | Every block | Every 2 epochs (~12.8 min) |
 | Validators | Configurable | 32 ETH stake required |
 | Block Time | Configurable | 12 seconds |
-| Engine API | V3 (Cancun) | V3 (Cancun) |
+| Engine API | V4/V5 (Prague/Osaka) | V4/V5 (Prague/Osaka) |
 
 ## Production Considerations
 

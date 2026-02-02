@@ -402,7 +402,7 @@ func (app *MemberNodesApp) produceBlock() error {
 	currentState := app.stateManager.GetBlockBuildState(app.appCtx)
 
 	// Phase 2: Finalize
-	return app.blockBuilder.FinalizeBlock(app.appCtx, currentState.PayloadID, currentState.ExecutionPayload)
+	return app.blockBuilder.FinalizeBlock(app.appCtx, currentState.PayloadID, currentState.ExecutionPayload, currentState.Requests)
 }
 
 func (app *MemberNodesApp) healthHandler(w http.ResponseWriter, r *http.Request) {
@@ -504,12 +504,12 @@ func (a *engineClientAdapter) ForkchoiceUpdatedV3(ctx context.Context, state eng
 	return a.client.ForkchoiceUpdatedV3(ctx, state, attrs)
 }
 
-func (a *engineClientAdapter) GetPayloadV4(ctx context.Context, payloadID engine.PayloadID) (*engine.ExecutionPayloadEnvelope, error) {
-	return a.client.GetPayloadV4(ctx, payloadID)
+func (a *engineClientAdapter) GetPayloadV5(ctx context.Context, payloadID engine.PayloadID) (*engine.ExecutionPayloadEnvelope, error) {
+	return a.client.GetPayloadV5(ctx, payloadID)
 }
 
-func (a *engineClientAdapter) NewPayloadV3(ctx context.Context, payload engine.ExecutableData, hashes []common.Hash, root *common.Hash) (engine.PayloadStatusV1, error) {
-	return a.client.NewPayloadV3(ctx, payload, hashes, root)
+func (a *engineClientAdapter) NewPayloadV4(ctx context.Context, payload engine.ExecutableData, hashes []common.Hash, root *common.Hash, requests [][]byte) (engine.PayloadStatusV1, error) {
+	return a.client.NewPayloadV4(ctx, payload, hashes, root, requests)
 }
 
 func (a *engineClientAdapter) HeaderByNumber(ctx context.Context, number interface{}) (*types.Header, error) {

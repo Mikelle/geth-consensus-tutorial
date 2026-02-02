@@ -23,8 +23,8 @@ const (
 type EngineClient interface {
 	HeaderByNumber(ctx context.Context, number interface{}) (*types.Header, error)
 	ForkchoiceUpdatedV3(ctx context.Context, state engine.ForkchoiceStateV1, attrs *engine.PayloadAttributes) (engine.ForkChoiceResponse, error)
-	GetPayloadV3(ctx context.Context, payloadID engine.PayloadID) (*engine.ExecutionPayloadEnvelope, error)
-	NewPayloadV3(ctx context.Context, payload engine.ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash) (engine.PayloadStatusV1, error)
+	GetPayloadV5(ctx context.Context, payloadID engine.PayloadID) (*engine.ExecutionPayloadEnvelope, error)
+	NewPayloadV4(ctx context.Context, payload engine.ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash, requests [][]byte) (engine.PayloadStatusV1, error)
 }
 
 // ExecutionHead tracks the current chain head
@@ -37,6 +37,7 @@ type ExecutionHead struct {
 // MsgExecutionPayload wraps the execution payload for CometBFT transactions
 type MsgExecutionPayload struct {
 	ExecutionPayload *engine.ExecutableData `json:"execution_payload"`
+	Requests         [][]byte               `json:"requests"` // EIP-7685 requests
 }
 
 // GethConsensusApp implements the CometBFT ABCI application
@@ -133,13 +134,13 @@ func (app *GethConsensusApp) PrepareProposal(ctx context.Context, req *abcitypes
 	}
 
 	// Build the next block
-	payload, err := app.buildBlock(ctx, req.Time.Unix())
+	payload, requests, err := app.buildBlock(ctx, req.Time.Unix())
 	if err != nil {
 		return nil, fmt.Errorf("build block: %w", err)
 	}
 
 	// Wrap payload in our message format
-	msg := MsgExecutionPayload{ExecutionPayload: payload}
+	msg := MsgExecutionPayload{ExecutionPayload: payload, Requests: requests}
 	txBytes, err := json.Marshal(msg)
 	if err != nil {
 		return nil, fmt.Errorf("marshal payload: %w", err)
@@ -198,10 +199,11 @@ func (app *GethConsensusApp) FinalizeBlock(ctx context.Context, req *abcitypes.R
 	}
 
 	payload := msg.ExecutionPayload
+	requests := msg.Requests
 
 	// Submit to Geth via NewPayload
 	parentHash := app.execHead.BlockHash
-	status, err := app.engineCl.NewPayloadV3(ctx, *payload, []common.Hash{}, &parentHash)
+	status, err := app.engineCl.NewPayloadV4(ctx, *payload, []common.Hash{}, &parentHash, requests)
 	if err != nil {
 		return nil, fmt.Errorf("new payload: %w", err)
 	}
@@ -270,7 +272,7 @@ func (app *GethConsensusApp) Query(ctx context.Context, req *abcitypes.RequestQu
 }
 
 // buildBlock triggers Geth to build a new block
-func (app *GethConsensusApp) buildBlock(ctx context.Context, timestamp int64) (*engine.ExecutableData, error) {
+func (app *GethConsensusApp) buildBlock(ctx context.Context, timestamp int64) (*engine.ExecutableData, [][]byte, error) {
 	headHash := app.execHead.BlockHash
 	ts := uint64(timestamp)
 	if ts <= app.execHead.BlockTime {
@@ -294,27 +296,27 @@ func (app *GethConsensusApp) buildBlock(ctx context.Context, timestamp int64) (*
 
 	response, err := app.engineCl.ForkchoiceUpdatedV3(ctx, fcs, attrs)
 	if err != nil {
-		return nil, fmt.Errorf("forkchoice updated: %w", err)
+		return nil, nil, fmt.Errorf("forkchoice updated: %w", err)
 	}
 
 	if response.PayloadStatus.Status != engine.VALID {
-		return nil, fmt.Errorf("invalid status: %s", response.PayloadStatus.Status)
+		return nil, nil, fmt.Errorf("invalid status: %s", response.PayloadStatus.Status)
 	}
 
 	if response.PayloadID == nil {
-		return nil, fmt.Errorf("no payload ID returned")
+		return nil, nil, fmt.Errorf("no payload ID returned")
 	}
 
 	// Wait for Geth to build the block
 	time.Sleep(app.buildDelay)
 
 	// Retrieve the built payload
-	payloadResp, err := app.engineCl.GetPayloadV3(ctx, *response.PayloadID)
+	payloadResp, err := app.engineCl.GetPayloadV5(ctx, *response.PayloadID)
 	if err != nil {
-		return nil, fmt.Errorf("get payload: %w", err)
+		return nil, nil, fmt.Errorf("get payload: %w", err)
 	}
 
-	return payloadResp.ExecutionPayload, nil
+	return payloadResp.ExecutionPayload, payloadResp.Requests, nil
 }
 
 // validatePayload checks that the payload is valid

@@ -170,12 +170,12 @@ func (a *engineClientAdapter) ForkchoiceUpdatedV3(ctx context.Context, state eng
 	return a.client.ForkchoiceUpdatedV3(ctx, state, attrs)
 }
 
-func (a *engineClientAdapter) GetPayloadV3(ctx context.Context, payloadID engine.PayloadID) (*engine.ExecutionPayloadEnvelope, error) {
-	return a.client.GetPayloadV3(ctx, payloadID)
+func (a *engineClientAdapter) GetPayloadV5(ctx context.Context, payloadID engine.PayloadID) (*engine.ExecutionPayloadEnvelope, error) {
+	return a.client.GetPayloadV5(ctx, payloadID)
 }
 
-func (a *engineClientAdapter) NewPayloadV3(ctx context.Context, payload engine.ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash) (engine.PayloadStatusV1, error) {
-	return a.client.NewPayloadV3(ctx, payload, versionedHashes, beaconRoot)
+func (a *engineClientAdapter) NewPayloadV4(ctx context.Context, payload engine.ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash, requests [][]byte) (engine.PayloadStatusV1, error) {
+	return a.client.NewPayloadV4(ctx, payload, versionedHashes, beaconRoot, requests)
 }
 
 // Ensure abciApp implements the ABCI interface

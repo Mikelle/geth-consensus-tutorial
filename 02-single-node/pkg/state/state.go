@@ -36,6 +36,7 @@ type BlockBuildState struct {
 	CurrentStep      BuildStep
 	PayloadID        string
 	ExecutionPayload string // Base64-encoded msgpack
+	Requests         string // Base64-encoded msgpack (EIP-7685 requests)
 }
 
 // StateManager interface for state operations

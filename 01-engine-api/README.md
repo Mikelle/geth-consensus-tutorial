@@ -4,7 +4,7 @@ This example demonstrates the fundamental Engine API operations:
 
 - JWT authentication for secure communication with Geth
 - `ForkchoiceUpdatedV3` - Set chain head and trigger block building
-- `GetPayloadV4` - Retrieve a built block
+- `GetPayloadV5` - Retrieve a built block
 - `NewPayloadV4` - Submit a block for execution
 
 ## Run
@@ -25,7 +25,7 @@ Step 1: Calling ForkchoiceUpdatedV3...
   PayloadID: 0x...
   Status: VALID
 Step 2: Waiting for block assembly (100ms)...
-Step 3: Calling GetPayloadV4...
+Step 3: Calling GetPayloadV5...
   Block Number: 1
   Block Hash: 0x...
   Parent Hash: 0x...
@@ -55,7 +55,7 @@ token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 
 1. **Propose**: `ForkchoiceUpdatedV3` with `PayloadAttributes` returns a `PayloadID`
 2. **Wait**: Give Geth time to include transactions
-3. **Retrieve**: `GetPayloadV4` returns the built `ExecutionPayload`
+3. **Retrieve**: `GetPayloadV5` returns the built `ExecutionPayload`
 4. **Execute**: `NewPayloadV4` submits the block to Geth for execution
 5. **Finalize**: `ForkchoiceUpdatedV3` without attributes sets the new head
 

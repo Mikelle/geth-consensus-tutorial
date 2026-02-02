@@ -41,6 +41,7 @@ type BlockBuildState struct {
 	CurrentStep      BuildStep `json:"current_step"`
 	PayloadID        string    `json:"payload_id"`
 	ExecutionPayload string    `json:"execution_payload"`
+	Requests         string    `json:"requests"` // EIP-7685 requests
 }
 
 // StateManager interface for state operations

@@ -25,8 +25,8 @@ const maxAttempts = 10
 // EngineClient interface for Engine API operations
 type EngineClient interface {
 	ForkchoiceUpdatedV3(ctx context.Context, state engine.ForkchoiceStateV1, attrs *engine.PayloadAttributes) (engine.ForkChoiceResponse, error)
-	GetPayloadV4(ctx context.Context, payloadID engine.PayloadID) (*engine.ExecutionPayloadEnvelope, error)
-	NewPayloadV3(ctx context.Context, payload engine.ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash) (engine.PayloadStatusV1, error)
+	GetPayloadV5(ctx context.Context, payloadID engine.PayloadID) (*engine.ExecutionPayloadEnvelope, error)
+	NewPayloadV4(ctx context.Context, payload engine.ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash, requests [][]byte) (engine.PayloadStatusV1, error)
 	HeaderByNumber(ctx context.Context, number interface{}) (*types.Header, error)
 }
 
@@ -124,7 +124,7 @@ func (bb *BlockBuilder) GetPayload(ctx context.Context) error {
 	var payloadResp *engine.ExecutionPayloadEnvelope
 	err = retryWithBackoff(ctx, maxAttempts, bb.logger, func() error {
 		var err error
-		payloadResp, err = bb.engineCl.GetPayloadV4(ctx, *payloadID)
+		payloadResp, err = bb.engineCl.GetPayloadV5(ctx, *payloadID)
 		return err
 	})
 	if err != nil {
@@ -137,17 +137,24 @@ func (bb *BlockBuilder) GetPayload(ctx context.Context) error {
 		return fmt.Errorf("marshal payload: %w", err)
 	}
 
+	requestsData, err := msgpack.Marshal(payloadResp.Requests)
+	if err != nil {
+		return fmt.Errorf("marshal requests: %w", err)
+	}
+
 	encodedPayload := base64.StdEncoding.EncodeToString(payloadData)
+	encodedRequests := base64.StdEncoding.EncodeToString(requestsData)
 
 	return bb.stateManager.SaveBlockState(ctx, &state.BlockBuildState{
 		CurrentStep:      state.StepFinalizeBlock,
 		PayloadID:        payloadID.String(),
 		ExecutionPayload: encodedPayload,
+		Requests:         encodedRequests,
 	})
 }
 
 // FinalizeBlock finalizes a built block and stores in PostgreSQL
-func (bb *BlockBuilder) FinalizeBlock(ctx context.Context, payloadIDStr, executionPayloadStr string) error {
+func (bb *BlockBuilder) FinalizeBlock(ctx context.Context, payloadIDStr, executionPayloadStr, requestsStr string) error {
 	if payloadIDStr == "" || executionPayloadStr == "" {
 		return errors.New("missing payload data")
 	}
@@ -163,6 +170,18 @@ func (bb *BlockBuilder) FinalizeBlock(ctx context.Context, payloadIDStr, executi
 		return fmt.Errorf("unmarshal payload: %w", err)
 	}
 
+	// Decode requests
+	var requests [][]byte
+	if requestsStr != "" {
+		requestsBytes, err := base64.StdEncoding.DecodeString(requestsStr)
+		if err != nil {
+			return fmt.Errorf("decode requests: %w", err)
+		}
+		if err := msgpack.Unmarshal(requestsBytes, &requests); err != nil {
+			return fmt.Errorf("unmarshal requests: %w", err)
+		}
+	}
+
 	// Validate
 	if err := bb.validatePayload(payload); err != nil {
 		return fmt.Errorf("validate payload: %w", err)
@@ -171,7 +190,7 @@ func (bb *BlockBuilder) FinalizeBlock(ctx context.Context, payloadIDStr, executi
 	// Push to Geth
 	parentHash := common.BytesToHash(bb.executionHead.BlockHash)
 	err = retryWithBackoff(ctx, maxAttempts, bb.logger, func() error {
-		status, err := bb.engineCl.NewPayloadV3(ctx, payload, []common.Hash{}, &parentHash)
+		status, err := bb.engineCl.NewPayloadV4(ctx, payload, []common.Hash{}, &parentHash, requests)
 		if err != nil {
 			return err
 		}

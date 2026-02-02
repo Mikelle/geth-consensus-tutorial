@@ -58,15 +58,20 @@ func (c *EngineClient) ForkchoiceUpdatedV3(ctx context.Context, state engine.For
 	return resp, err
 }
 
-func (c *EngineClient) GetPayloadV3(ctx context.Context, payloadID engine.PayloadID) (*engine.ExecutionPayloadEnvelope, error) {
+func (c *EngineClient) GetPayloadV5(ctx context.Context, payloadID engine.PayloadID) (*engine.ExecutionPayloadEnvelope, error) {
 	var resp engine.ExecutionPayloadEnvelope
-	err := c.rpc.CallContext(ctx, &resp, "engine_getPayloadV3", payloadID)
+	err := c.rpc.CallContext(ctx, &resp, "engine_getPayloadV5", payloadID)
 	return &resp, err
 }
 
-func (c *EngineClient) NewPayloadV3(ctx context.Context, payload engine.ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash) (engine.PayloadStatusV1, error) {
+func (c *EngineClient) NewPayloadV4(ctx context.Context, payload engine.ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash, requests [][]byte) (engine.PayloadStatusV1, error) {
 	var resp engine.PayloadStatusV1
-	err := c.rpc.CallContext(ctx, &resp, "engine_newPayloadV3", payload, versionedHashes, beaconRoot)
+	// Convert [][]byte to []hexutil.Bytes for JSON encoding
+	hexRequests := make([]hexutil.Bytes, len(requests))
+	for i, r := range requests {
+		hexRequests[i] = r
+	}
+	err := c.rpc.CallContext(ctx, &resp, "engine_newPayloadV4", payload, versionedHashes, beaconRoot, hexRequests)
 	return resp, err
 }
 

@@ -104,11 +104,11 @@ func buildBlock(ctx context.Context, client *EngineClient, currentHead *types.He
 	time.Sleep(100 * time.Millisecond)
 
 	// Step 3: GetPayload - retrieve the built block
-	log.Printf("Step 3: Calling GetPayloadV4...")
+	log.Printf("Step 3: Calling GetPayloadV5...")
 
-	payloadResp, err := client.GetPayloadV4(ctx, *fcResponse.PayloadID)
+	payloadResp, err := client.GetPayloadV5(ctx, *fcResponse.PayloadID)
 	if err != nil {
-		return fmt.Errorf("GetPayloadV4 failed: %w", err)
+		return fmt.Errorf("GetPayloadV5 failed: %w", err)
 	}
 
 	payload := payloadResp.ExecutionPayload
@@ -119,11 +119,17 @@ func buildBlock(ctx context.Context, client *EngineClient, currentHead *types.He
 	log.Printf("  Transactions: %d", len(payload.Transactions))
 
 	// Step 4: NewPayload - submit block for execution
-	log.Printf("Step 4: Calling NewPayloadV3...")
+	log.Printf("Step 4: Calling NewPayloadV4...")
 
-	status, err := client.NewPayloadV3(ctx, *payload, []common.Hash{}, &headHash)
+	// Convert [][]byte to []hexutil.Bytes
+	requests := make([]hexutil.Bytes, len(payloadResp.Requests))
+	for i, r := range payloadResp.Requests {
+		requests[i] = r
+	}
+
+	status, err := client.NewPayloadV4(ctx, *payload, []common.Hash{}, &headHash, requests)
 	if err != nil {
-		return fmt.Errorf("NewPayloadV3 failed: %w", err)
+		return fmt.Errorf("NewPayloadV4 failed: %w", err)
 	}
 
 	log.Printf("  Status: %s", status.Status)
@@ -195,21 +201,15 @@ func (c *EngineClient) ForkchoiceUpdatedV3(ctx context.Context, state engine.For
 	return resp, err
 }
 
-func (c *EngineClient) GetPayloadV4(ctx context.Context, payloadID engine.PayloadID) (*engine.ExecutionPayloadEnvelope, error) {
+func (c *EngineClient) GetPayloadV5(ctx context.Context, payloadID engine.PayloadID) (*engine.ExecutionPayloadEnvelope, error) {
 	var resp engine.ExecutionPayloadEnvelope
-	err := c.rpc.CallContext(ctx, &resp, "engine_getPayloadV4", payloadID)
+	err := c.rpc.CallContext(ctx, &resp, "engine_getPayloadV5", payloadID)
 	return &resp, err
 }
 
 func (c *EngineClient) NewPayloadV4(ctx context.Context, payload engine.ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash, requests []hexutil.Bytes) (engine.PayloadStatusV1, error) {
 	var resp engine.PayloadStatusV1
 	err := c.rpc.CallContext(ctx, &resp, "engine_newPayloadV4", payload, versionedHashes, beaconRoot, requests)
-	return resp, err
-}
-
-func (c *EngineClient) NewPayloadV3(ctx context.Context, payload engine.ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash) (engine.PayloadStatusV1, error) {
-	var resp engine.PayloadStatusV1
-	err := c.rpc.CallContext(ctx, &resp, "engine_newPayloadV3", payload, versionedHashes, beaconRoot)
 	return resp, err
 }
 
