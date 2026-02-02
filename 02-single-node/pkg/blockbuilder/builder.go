@@ -26,13 +26,6 @@ type EngineClient interface {
 	GetPayloadV4(ctx context.Context, payloadID engine.PayloadID) (*engine.ExecutionPayloadEnvelope, error)
 	NewPayloadV3(ctx context.Context, payload engine.ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash) (engine.PayloadStatusV1, error)
 	HeaderByNumber(ctx context.Context, number interface{}) (*types.Header, error)
-	GetMempoolStatus(ctx context.Context) (*MempoolStatus, error)
-}
-
-// MempoolStatus represents txpool status
-type MempoolStatus struct {
-	Pending uint64
-	Queued  uint64
 }
 
 // BlockBuilder orchestrates block building
@@ -71,16 +64,6 @@ func (bb *BlockBuilder) GetPayload(ctx context.Context) error {
 		if err := bb.SetExecutionHeadFromRPC(ctx); err != nil {
 			return fmt.Errorf("set execution head: %w", err)
 		}
-	}
-
-	// Check mempool - skip empty blocks if recent
-	mempoolStatus, _ := bb.engineCl.GetMempoolStatus(ctx)
-	if mempoolStatus != nil && mempoolStatus.Pending == 0 {
-		timeSinceLastBlock := time.Since(time.UnixMilli(int64(bb.executionHead.BlockTime)))
-		if timeSinceLastBlock < bb.buildEmptyBlocksDelay {
-			return ErrEmptyBlock
-		}
-		bb.logger.Info("Building empty block", "timeSinceLastBlock", timeSinceLastBlock)
 	}
 
 	// Calculate timestamp

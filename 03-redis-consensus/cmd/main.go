@@ -400,14 +400,3 @@ func (a *engineClientAdapter) HeaderByNumber(ctx context.Context, number interfa
 	}
 	return a.client.HeaderByNumber(ctx, n)
 }
-
-func (a *engineClientAdapter) GetMempoolStatus(ctx context.Context) (*blockbuilder.MempoolStatus, error) {
-	status, err := a.client.GetMempoolStatus(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return &blockbuilder.MempoolStatus{
-		Pending: uint64(status.Pending),
-		Queued:  uint64(status.Queued),
-	}, nil
-}

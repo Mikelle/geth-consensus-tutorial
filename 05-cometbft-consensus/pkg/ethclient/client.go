@@ -43,7 +43,13 @@ func NewEngineClient(ctx context.Context, endpoint string, jwtSecret []byte) (*E
 func (c *EngineClient) HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error) {
 	var header *types.Header
 	err := c.rpc.CallContext(ctx, &header, "eth_getBlockByNumber", toBlockNumArg(number), false)
-	return header, err
+	if err != nil {
+		return nil, err
+	}
+	if header == nil {
+		return nil, fmt.Errorf("block not found: %s", toBlockNumArg(number))
+	}
+	return header, nil
 }
 
 func (c *EngineClient) ForkchoiceUpdatedV3(ctx context.Context, state engine.ForkchoiceStateV1, attrs *engine.PayloadAttributes) (engine.ForkChoiceResponse, error) {
