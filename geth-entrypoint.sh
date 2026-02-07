@@ -25,4 +25,5 @@ exec geth \
     --networkid 1337 \
     --allow-insecure-unlock \
     --syncmode full \
+    --miner.gasprice 1 \
     "$@"
