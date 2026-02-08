@@ -4,11 +4,11 @@ Build a custom consensus layer for go-ethereum (Geth) from scratch. This tutoria
 
 ## Blog Series
 
-1. [Writing Custom Consensus for Geth: A Practical Guide](https://mikelle.dev/blog/custom-geth-consensus) - Engine API fundamentals
-2. [Single Node Consensus: Building a Complete Implementation](https://mikelle.dev/blog/single-node-consensus) - Production-ready single node
-3. [Scaling to Distributed Consensus with Redis](https://mikelle.dev/blog/redis-distributed-consensus) - Fault tolerance with leader election
-4. [Member Nodes: Horizontal Scaling for Consensus](https://mikelle.dev/blog/member-nodes-architecture) - PostgreSQL-based scaling
-5. [CometBFT Integration: BFT Finality for Geth](https://mikelle.dev/blog/cometbft-geth-integration) - Byzantine fault tolerance
+1. [Writing Custom Consensus for Geth: A Practical Guide](https://mikelle.github.io/blog/custom-geth-consensus) - Engine API fundamentals
+2. Single Node Consensus: Building a Complete Implementation - Production-ready single node *(coming soon)*
+3. Scaling to Distributed Consensus with Redis - Fault tolerance with leader election *(coming soon)*
+4. Member Nodes: Horizontal Scaling for Consensus - PostgreSQL-based scaling *(coming soon)*
+5. CometBFT Integration: BFT Finality for Geth - Byzantine fault tolerance *(coming soon)*
 
 ## Repository Structure
 
@@ -27,7 +27,7 @@ Each directory is self-contained and progressively builds on the previous part.
 
 ### Prerequisites
 
-- Go 1.21+
+- Go 1.24+
 - Docker & Docker Compose
 - Make (optional)
 
@@ -35,10 +35,10 @@ Each directory is self-contained and progressively builds on the previous part.
 
 ```bash
 # Start Geth, Redis, and PostgreSQL
-docker-compose up -d
+docker compose up -d
 
 # Wait for Geth to initialize (~10 seconds)
-docker-compose logs -f geth
+docker compose logs -f geth
 ```
 
 ### Run Each Part
@@ -172,15 +172,15 @@ go run ./cmd/main.go --cmt-home ~/.cometbft
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `ETH_CLIENT_URL` | `http://localhost:8551` | Geth Engine API endpoint |
-| `JWT_SECRET` | (see docker-compose) | 32-byte hex-encoded secret |
+| `JWT_SECRET` | (see docker compose) | 32-byte hex-encoded secret |
 | `REDIS_ADDR` | `localhost:6379` | Redis address |
-| `POSTGRES_DSN` | (see docker-compose) | PostgreSQL connection string |
+| `POSTGRES_DSN` | (see docker compose) | PostgreSQL connection string |
 
 ### Geth Genesis
 
 The included `genesis.json` creates a local PoS-ready chain with:
 - Chain ID: 1337
-- No pre-funded accounts (add your own)
+- Pre-funded test account: `0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266` (Foundry default)
 - Instant block times (controlled by consensus layer)
 
 ## Production Notes

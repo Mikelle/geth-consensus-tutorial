@@ -27,7 +27,7 @@ A complete, production-ready single-node consensus implementation with:
 
 ```bash
 # Start Geth (from repo root)
-docker-compose up -d geth
+docker compose up -d geth
 
 # Run the node
 go run ./cmd/main.go --instance-id node-1
@@ -43,6 +43,7 @@ go run ./cmd/main.go --instance-id node-1
 | `--priority-fee-recipient` | `0x0...` | Fee recipient address |
 | `--evm-build-delay` | `1ms` | Delay for block assembly |
 | `--evm-build-delay-empty-block` | `1m` | Min time between empty blocks |
+| `--tx-pool-polling-interval` | `5ms` | Poll interval when mempool empty |
 | `--health-addr` | `:8080` | Health check endpoint |
 
 ## Endpoints

@@ -67,7 +67,7 @@ func (bb *BlockBuilder) GetPayload(ctx context.Context) error {
 	}
 
 	// Calculate timestamp
-	ts := uint64(time.Now().UnixMilli())
+	ts := uint64(time.Now().Unix())
 	if ts <= bb.executionHead.BlockTime {
 		ts = bb.executionHead.BlockTime + 1
 	}
@@ -132,6 +132,12 @@ func (bb *BlockBuilder) GetPayload(ctx context.Context) error {
 	requestsData, err := msgpack.Marshal(payloadResp.Requests)
 	if err != nil {
 		return fmt.Errorf("marshal requests: %w", err)
+	}
+
+	// Skip empty blocks — wait and let the run loop poll again
+	if len(payloadResp.ExecutionPayload.Transactions) == 0 {
+		time.Sleep(bb.buildEmptyBlocksDelay)
+		return ErrEmptyBlock
 	}
 
 	encodedPayload := base64.StdEncoding.EncodeToString(payloadData)
@@ -264,11 +270,6 @@ func (bb *BlockBuilder) SetExecutionHeadFromRPC(ctx context.Context) error {
 			"hash", common.BytesToHash(bb.executionHead.BlockHash).Hex())
 		return nil
 	})
-}
-
-// GetExecutionHead returns the current execution head
-func (bb *BlockBuilder) GetExecutionHead() *state.ExecutionHead {
-	return bb.executionHead
 }
 
 func retryWithBackoff(ctx context.Context, maxAttempts uint64, logger *slog.Logger, operation func() error) error {

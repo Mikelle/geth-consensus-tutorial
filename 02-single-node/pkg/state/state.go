@@ -1,9 +1,6 @@
 package state
 
-import (
-	"context"
-	"sync"
-)
+import "context"
 
 // BuildStep represents the current step in block building
 type BuildStep int
@@ -48,7 +45,6 @@ type StateManager interface {
 
 // LocalStateManager implements in-memory state management
 type LocalStateManager struct {
-	mu              sync.RWMutex
 	blockBuildState *BlockBuildState
 }
 
@@ -63,16 +59,12 @@ func NewLocalStateManager() *LocalStateManager {
 
 // SaveBlockState saves the block state
 func (m *LocalStateManager) SaveBlockState(_ context.Context, state *BlockBuildState) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
 	m.blockBuildState = state
 	return nil
 }
 
 // GetBlockBuildState retrieves the current block build state
 func (m *LocalStateManager) GetBlockBuildState(_ context.Context) BlockBuildState {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
 	if m.blockBuildState == nil {
 		return BlockBuildState{CurrentStep: StepBuildBlock}
 	}
@@ -81,8 +73,6 @@ func (m *LocalStateManager) GetBlockBuildState(_ context.Context) BlockBuildStat
 
 // ResetBlockState resets the block build state
 func (m *LocalStateManager) ResetBlockState(_ context.Context) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
 	m.blockBuildState = &BlockBuildState{
 		CurrentStep: StepBuildBlock,
 	}
