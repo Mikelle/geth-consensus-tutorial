@@ -5,7 +5,7 @@ Build a custom consensus layer for go-ethereum (Geth) from scratch. This tutoria
 ## Blog Series
 
 1. [Writing Custom Consensus for Geth: A Practical Guide](https://mikelle.github.io/blog/custom-geth-consensus) - Engine API fundamentals
-2. Single Node Consensus: Building a Complete Implementation - Production-ready single node *(coming soon)*
+2. [Single Node Consensus: Building a Complete Implementation](https://mikelle.github.io/blog/single-node-consensus) - Production-ready single node
 3. Scaling to Distributed Consensus with Redis - Fault tolerance with leader election *(coming soon)*
 4. Member Nodes: Horizontal Scaling for Consensus - PostgreSQL-based scaling *(coming soon)*
 5. CometBFT Integration: BFT Finality for Geth - Byzantine fault tolerance *(coming soon)*
