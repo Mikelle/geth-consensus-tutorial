@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mikelle/geth-consensus-tutorial/04-member-nodes/pkg/redis"
+	"github.com/mikelle/geth-consensus-tutorial/03-member-nodes/pkg/redis"
 )
 
 // BuildStep represents the current step in block building

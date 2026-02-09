@@ -75,4 +75,4 @@ Permanent errors (e.g., INVALID status) are not retried.
 
 ## Next
 
-Continue to [Part 3: Redis Consensus](../03-redis-consensus/) for distributed fault tolerance.
+Continue to [Part 3: Member Nodes](../03-member-nodes/) for distributed fault tolerance.

@@ -234,7 +234,7 @@ docker-compose up -d geth
 ### Start CometBFT + App
 
 ```bash
-cd 05-cometbft-consensus
+cd 04-cometbft-consensus
 go run ./cmd/main.go \
   --cmt-home ~/.cometbft \
   --eth-client-url http://localhost:8551

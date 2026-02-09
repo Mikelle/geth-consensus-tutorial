@@ -12,9 +12,9 @@ import (
 	"github.com/ethereum/go-ethereum/beacon/engine"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/mikelle/geth-consensus-tutorial/04-member-nodes/pkg/postgres"
-	"github.com/mikelle/geth-consensus-tutorial/04-member-nodes/pkg/redis"
-	"github.com/mikelle/geth-consensus-tutorial/04-member-nodes/pkg/state"
+	"github.com/mikelle/geth-consensus-tutorial/03-member-nodes/pkg/postgres"
+	"github.com/mikelle/geth-consensus-tutorial/03-member-nodes/pkg/redis"
+	"github.com/mikelle/geth-consensus-tutorial/03-member-nodes/pkg/state"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
@@ -75,7 +75,7 @@ func (bb *BlockBuilder) GetPayload(ctx context.Context) error {
 	}
 
 	// Calculate timestamp
-	ts := uint64(time.Now().UnixMilli())
+	ts := uint64(time.Now().Unix())
 	if ts <= bb.executionHead.BlockTime {
 		ts = bb.executionHead.BlockTime + 1
 	}
@@ -140,6 +140,12 @@ func (bb *BlockBuilder) GetPayload(ctx context.Context) error {
 	requestsData, err := msgpack.Marshal(payloadResp.Requests)
 	if err != nil {
 		return fmt.Errorf("marshal requests: %w", err)
+	}
+
+	// Skip empty blocks — wait and let the run loop poll again
+	if len(payloadResp.ExecutionPayload.Transactions) == 0 {
+		time.Sleep(bb.buildEmptyBlocksDelay)
+		return ErrEmptyBlock
 	}
 
 	encodedPayload := base64.StdEncoding.EncodeToString(payloadData)

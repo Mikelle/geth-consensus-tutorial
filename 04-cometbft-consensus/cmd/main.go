@@ -30,8 +30,8 @@ import (
 	"github.com/ethereum/go-ethereum/beacon/engine"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/mikelle/geth-consensus-tutorial/05-cometbft-consensus/pkg/app"
-	"github.com/mikelle/geth-consensus-tutorial/05-cometbft-consensus/pkg/ethclient"
+	"github.com/mikelle/geth-consensus-tutorial/04-cometbft-consensus/pkg/app"
+	"github.com/mikelle/geth-consensus-tutorial/04-cometbft-consensus/pkg/ethclient"
 	"github.com/urfave/cli/v2"
 )
 

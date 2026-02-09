@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/mikelle/geth-consensus-tutorial/04-member-nodes/pkg/postgres"
+	"github.com/mikelle/geth-consensus-tutorial/03-member-nodes/pkg/postgres"
 )
 
 // Server provides HTTP API for block syncing

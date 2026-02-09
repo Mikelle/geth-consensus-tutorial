@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/mikelle/geth-consensus-tutorial/04-member-nodes/pkg/postgres"
+	"github.com/mikelle/geth-consensus-tutorial/03-member-nodes/pkg/postgres"
 )
 
 // Syncer synchronizes blocks from a leader node

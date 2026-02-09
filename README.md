@@ -6,19 +6,17 @@ Build a custom consensus layer for go-ethereum (Geth) from scratch. This tutoria
 
 1. [Writing Custom Consensus for Geth: A Practical Guide](https://mikelle.github.io/blog/custom-geth-consensus) - Engine API fundamentals
 2. [Single Node Consensus: Building a Complete Implementation](https://mikelle.github.io/blog/single-node-consensus) - Production-ready single node
-3. Scaling to Distributed Consensus with Redis - Fault tolerance with leader election *(coming soon)*
-4. Member Nodes: Horizontal Scaling for Consensus - PostgreSQL-based scaling *(coming soon)*
-5. CometBFT Integration: BFT Finality for Geth - Byzantine fault tolerance *(coming soon)*
+3. Distributed Consensus with Redis, PostgreSQL, and Member Nodes - Leader election, storage, and horizontal scaling *(coming soon)*
+4. CometBFT Integration: BFT Finality for Geth - Byzantine fault tolerance *(coming soon)*
 
 ## Repository Structure
 
 ```
-├── 01-engine-api/        # Part 1: Minimal Engine API client
-├── 02-single-node/       # Part 2: Complete single-node consensus
-├── 03-redis-consensus/   # Part 3: Distributed consensus with Redis
-├── 04-member-nodes/      # Part 4: Member nodes with PostgreSQL
-├── 05-cometbft-consensus/# Part 5: CometBFT BFT consensus
-└── docker-compose.yml    # Run Geth + Redis + PostgreSQL locally
+├── 01-engine-api/          # Part 1: Minimal Engine API client
+├── 02-single-node/         # Part 2: Complete single-node consensus
+├── 03-member-nodes/        # Part 3: Distributed consensus with member nodes
+├── 04-cometbft-consensus/  # Part 4: CometBFT BFT consensus
+└── docker-compose.yml      # Run Geth + Redis + PostgreSQL locally
 ```
 
 Each directory is self-contained and progressively builds on the previous part.
@@ -52,19 +50,14 @@ go run main.go
 cd 02-single-node
 go run ./cmd/main.go --instance-id node-1
 
-# Part 3: Redis consensus (run multiple terminals)
-cd 03-redis-consensus
-go run ./cmd/main.go --instance-id node-1  # Terminal 1
-go run ./cmd/main.go --instance-id node-2  # Terminal 2
+# Part 3: Member nodes (leader + members)
+cd 03-member-nodes
+go run ./cmd/main.go --instance-id leader-1 --mode leader   # Terminal 1
+go run ./cmd/main.go --instance-id member-1 --mode member   # Terminal 2
 
-# Part 4: Member nodes
-cd 04-member-nodes
-go run ./cmd/main.go leader --instance-id leader-1   # Terminal 1
-go run ./cmd/main.go follower --instance-id member-1 # Terminal 2
-
-# Part 5: CometBFT consensus (requires CometBFT installed)
+# Part 4: CometBFT consensus (requires CometBFT installed)
 cometbft init --home ~/.cometbft  # Initialize once
-cd 05-cometbft-consensus
+cd 04-cometbft-consensus
 go run ./cmd/main.go --cmt-home ~/.cometbft
 ```
 
@@ -98,42 +91,25 @@ go run ./cmd/main.go --cmt-home ~/.cometbft
          └───────────────┘
 ```
 
-### Part 3: Redis Consensus
+### Part 3: Member Nodes
 
 ```
-┌──────────┐     ┌──────────┐
-│  Node 1  │     │  Node 2  │
-│ (Leader) │     │(Follower)│
-└────┬─────┘     └────┬─────┘
-     │                │
-     └───────┬────────┘
-             │
-     ┌───────▼───────┐
-     │    Redis      │
-     │  • Election   │
-     │  • Streams    │
-     └───────────────┘
+┌─────────────────────────────┐
+│        Leader Node          │
+│  ┌──────┐  ┌─────┐ ┌─────┐ │
+│  │ Geth │  │Redis│ │ PG  │ │
+│  └──────┘  └─────┘ └──┬──┘ │
+└────────────────────────┼────┘
+                         │
+           ┌─────────────┼─────────────┐
+           ▼             ▼             ▼
+      ┌─────────┐   ┌─────────┐   ┌─────────┐
+      │Member 1 │   │Member 2 │   │Member 3 │
+      │(syncer) │   │(syncer) │   │(syncer) │
+      └─────────┘   └─────────┘   └─────────┘
 ```
 
-### Part 4: Member Nodes
-
-```
-┌─────────────────────────┐
-│     Leader Node         │
-│  ┌──────┐  ┌─────────┐  │
-│  │ Geth │  │Postgres │  │
-│  └──────┘  └────┬────┘  │
-└─────────────────┼───────┘
-                  │
-        ┌─────────┴─────────┐
-        ▼                   ▼
-   ┌─────────┐         ┌─────────┐
-   │Member 1 │         │Member 2 │
-   │ + Geth  │         │ + Geth  │
-   └─────────┘         └─────────┘
-```
-
-### Part 5: CometBFT Consensus
+### Part 4: CometBFT Consensus
 
 ```
 ┌───────────────────────────────────────────────────────────────┐

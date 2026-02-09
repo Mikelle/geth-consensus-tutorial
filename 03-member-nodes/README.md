@@ -13,7 +13,7 @@ A horizontally scalable consensus system with PostgreSQL persistence and HTTP-ba
 ## Structure
 
 ```
-04-member-nodes/
+03-member-nodes/
 ├── cmd/
 │   └── main.go           # CLI entry point
 └── pkg/
@@ -38,7 +38,7 @@ A horizontally scalable consensus system with PostgreSQL persistence and HTTP-ba
 
 ```bash
 # Start infrastructure (from repo root)
-docker-compose up -d geth redis postgres
+docker compose up -d geth redis postgres
 
 # Run leader node
 go run ./cmd/main.go --instance-id leader-1 --mode leader \
@@ -221,7 +221,7 @@ Running the full system:
 
 ```bash
 # Start infrastructure
-docker-compose up -d geth redis postgres
+docker compose up -d geth redis postgres
 
 # Start multiple leaders (only one will be active)
 ./bin/member-nodes --instance-id leader-1 --mode leader &

@@ -1,4 +1,4 @@
-module github.com/mikelle/geth-consensus-tutorial/05-cometbft-consensus
+module github.com/mikelle/geth-consensus-tutorial/04-cometbft-consensus
 
 go 1.24.0
 
