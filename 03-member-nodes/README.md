@@ -1,14 +1,14 @@
-# Part 4: Member Nodes Architecture
+# Part 3: Member Nodes Architecture
 
-A horizontally scalable consensus system with PostgreSQL persistence and HTTP-based member synchronization.
+A distributed consensus system with Redis leader election, PostgreSQL persistence, and member nodes that sync blocks from the leader and execute them on their own Geth — making each member a full execution replica.
 
 ## Features
 
-- **Leader Mode**: Full consensus with Redis and PostgreSQL
-- **Member Mode**: Lightweight sync from leader via HTTP API
-- **PostgreSQL Storage**: Durable payload persistence
+- **Leader Mode**: Full consensus with Redis leader election, Geth block production, and PostgreSQL storage
+- **Member Mode**: Sync blocks from leader, execute on local Geth via Engine API
+- **PostgreSQL Storage**: Durable payload persistence (leader and each member have their own instance)
 - **HTTP API**: Block sync endpoints for member nodes
-- **Horizontal Scaling**: Add read replicas without touching consensus
+- **Horizontal Scaling**: Add execution replicas that can serve RPC queries independently
 
 ## Structure
 
@@ -22,14 +22,14 @@ A horizontally scalable consensus system with PostgreSQL persistence and HTTP-ba
     ├── blockbuilder/
     │   └── builder.go    # Block building with PostgreSQL
     ├── redis/
-    │   ├── client.go     # Redis client wrapper
+    │   ├── client.go     # Redis client wrapper (includes Lua scripts)
     │   └── leaderelection.go
     ├── postgres/
     │   └── store.go      # PostgreSQL payload store
     ├── api/
     │   └── server.go     # HTTP API for block sync
     ├── sync/
-    │   └── syncer.go     # Member node sync logic
+    │   └── syncer.go     # Member node sync + Geth execution
     └── state/
         └── state.go      # State management
 ```
@@ -38,18 +38,18 @@ A horizontally scalable consensus system with PostgreSQL persistence and HTTP-ba
 
 ```bash
 # Start infrastructure (from repo root)
-docker compose up -d geth redis postgres
+docker compose up -d geth geth-member redis postgres postgres-member
 
 # Run leader node
 go run ./cmd/main.go --instance-id leader-1 --mode leader \
   --health-addr :8080 --api-addr :8090
 
-# Run member nodes
+# Run member node (with its own Geth and PostgreSQL)
 go run ./cmd/main.go --instance-id member-1 --mode member \
-  --leader-url http://localhost:8090 --health-addr :8081
-
-go run ./cmd/main.go --instance-id member-2 --mode member \
-  --leader-url http://localhost:8090 --health-addr :8082
+  --leader-url http://localhost:8090 \
+  --eth-client-url http://localhost:8552 \
+  --postgres-url "postgres://postgres:postgres@localhost:5433/consensus?sslmode=disable" \
+  --health-addr :8081
 ```
 
 ## Configuration
@@ -72,6 +72,7 @@ go run ./cmd/main.go --instance-id member-2 --mode member \
 | `--instance-id` | (required) | Unique node identifier |
 | `--mode` | `member` | Set to `member` |
 | `--leader-url` | `http://localhost:8090` | Leader API URL |
+| `--eth-client-url` | `http://localhost:8551` | Local Geth Engine API URL |
 | `--postgres-url` | (see below) | PostgreSQL connection URL |
 
 ## Architecture
@@ -108,8 +109,11 @@ go run ./cmd/main.go --instance-id member-2 --mode member \
         │  └───┬───┘  │               │  └───┬───┘  │               │  └───┬───┘  │
         │      ▼      │               │      ▼      │               │      ▼      │
         │  ┌───────┐  │               │  ┌───────┐  │               │  ┌───────┐  │
-        │  │ Local │  │               │  │ Local │  │               │  │ Local │  │
-        │  │ PG    │  │               │  │ PG    │  │               │  │ PG    │  │
+        │  │ Geth  │  │               │  │ Geth  │  │               │  │ Geth  │  │
+        │  └───┬───┘  │               │  └───┬───┘  │               │  └───┬───┘  │
+        │      ▼      │               │      ▼      │               │      ▼      │
+        │  ┌───────┐  │               │  ┌───────┐  │               │  ┌───────┐  │
+        │  │  PG   │  │               │  │  PG   │  │               │  │  PG   │  │
         │  └───────┘  │               │  └───────┘  │               │  └───────┘  │
         └─────────────┘               └─────────────┘               └─────────────┘
 ```
@@ -121,7 +125,7 @@ go run ./cmd/main.go --instance-id member-2 --mode member \
 | `/blocks/latest` | GET | Get latest block |
 | `/blocks/{number}` | GET | Get block by number |
 | `/blocks/{hash}` | GET | Get block by hash |
-| `/blocks?after=N&limit=M` | GET | Get blocks after N |
+| `/blocks?after=N&limit=M` | GET | Get blocks after N (limit capped at 1000) |
 
 ### Database Schema
 
@@ -131,6 +135,7 @@ CREATE TABLE payloads (
     block_hash TEXT NOT NULL UNIQUE,
     parent_hash TEXT NOT NULL,
     payload_data TEXT NOT NULL,
+    requests_data TEXT NOT NULL DEFAULT '',
     timestamp BIGINT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -148,12 +153,13 @@ CREATE TABLE payloads (
 
 **Member responsibilities:**
 - Poll leader API for new blocks
-- Store payloads locally
-- Serve read queries
+- Execute blocks on local Geth (NewPayloadV4 + ForkchoiceUpdatedV3)
+- Store payloads in local PostgreSQL
+- Serve RPC queries (eth_call, eth_getBalance, etc.)
 
 ### Sync Protocol
 
-Members poll the leader:
+Members poll the leader with exponential backoff on failures (200ms–30s):
 
 ```
 GET /blocks?after=1000&limit=100
@@ -166,7 +172,10 @@ Response:
     {
       "block_number": 1001,
       "block_hash": "0x...",
-      "payload_data": "base64..."
+      "parent_hash": "0x...",
+      "payload_data": "base64...",
+      "requests_data": "base64...",
+      "timestamp": 1700000000
     }
   ]
 }
@@ -174,7 +183,7 @@ Response:
 
 ### Scaling Patterns
 
-1. **Read Scaling**: Add member nodes
+1. **Read Scaling**: Add member nodes — each is a full execution replica
 2. **Write Scaling**: Leader handles all writes
 3. **Geographic Distribution**: Members in different regions
 
@@ -221,14 +230,16 @@ Running the full system:
 
 ```bash
 # Start infrastructure
-docker compose up -d geth redis postgres
+docker compose up -d geth geth-member redis postgres postgres-member
 
-# Start multiple leaders (only one will be active)
-./bin/member-nodes --instance-id leader-1 --mode leader &
-./bin/member-nodes --instance-id leader-2 --mode leader &
+# Start multiple leaders (only one will be active via Redis election)
+go run ./cmd/main.go --instance-id leader-1 --mode leader &
+go run ./cmd/main.go --instance-id leader-2 --mode leader \
+  --health-addr :8082 --api-addr :8092 &
 
-# Start member nodes
-./bin/member-nodes --instance-id member-1 --mode member &
-./bin/member-nodes --instance-id member-2 --mode member &
-./bin/member-nodes --instance-id member-3 --mode member &
+# Start member node
+go run ./cmd/main.go --instance-id member-1 --mode member \
+  --eth-client-url http://localhost:8552 \
+  --postgres-url "postgres://postgres:postgres@localhost:5433/consensus?sslmode=disable" \
+  --health-addr :8081 &
 ```
