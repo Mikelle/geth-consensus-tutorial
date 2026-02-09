@@ -6,7 +6,7 @@ Build a custom consensus layer for go-ethereum (Geth) from scratch. This tutoria
 
 1. [Writing Custom Consensus for Geth: A Practical Guide](https://mikelle.github.io/blog/custom-geth-consensus) - Engine API fundamentals
 2. [Single Node Consensus: Building a Complete Implementation](https://mikelle.github.io/blog/single-node-consensus) - Production-ready single node
-3. Distributed Consensus with Redis, PostgreSQL, and Member Nodes - Leader election, storage, and horizontal scaling *(coming soon)*
+3. [Distributed Consensus with Redis, PostgreSQL, and Member Nodes](https://mikelle.github.io/blog/redis-distributed-consensus) - Leader election, storage, and horizontal scaling
 4. CometBFT Integration: BFT Finality for Geth - Byzantine fault tolerance *(coming soon)*
 
 ## Repository Structure
@@ -52,8 +52,11 @@ go run ./cmd/main.go --instance-id node-1
 
 # Part 3: Member nodes (leader + members)
 cd 03-member-nodes
-go run ./cmd/main.go --instance-id leader-1 --mode leader   # Terminal 1
-go run ./cmd/main.go --instance-id member-1 --mode member   # Terminal 2
+go run ./cmd/main.go --instance-id leader-1 --mode leader                        # Terminal 1
+go run ./cmd/main.go --instance-id member-1 --mode member \
+  --eth-client-url http://localhost:8552 \
+  --postgres-url "postgres://postgres:postgres@localhost:5433/consensus?sslmode=disable" \
+  --health-addr :8081                                                             # Terminal 2
 
 # Part 4: CometBFT consensus (requires CometBFT installed)
 cometbft init --home ~/.cometbft  # Initialize once
@@ -105,7 +108,9 @@ go run ./cmd/main.go --cmt-home ~/.cometbft
            ▼             ▼             ▼
       ┌─────────┐   ┌─────────┐   ┌─────────┐
       │Member 1 │   │Member 2 │   │Member 3 │
-      │(syncer) │   │(syncer) │   │(syncer) │
+      │ Syncer  │   │ Syncer  │   │ Syncer  │
+      │ + Geth  │   │ + Geth  │   │ + Geth  │
+      │ + PG    │   │ + PG    │   │ + PG    │
       └─────────┘   └─────────┘   └─────────┘
 ```
 
@@ -138,8 +143,7 @@ go run ./cmd/main.go --cmt-home ~/.cometbft
 | ForkchoiceUpdated | Set chain head and trigger block building |
 | GetPayload | Retrieve a built block from Geth |
 | NewPayload | Submit a block for execution |
-| Leader Election | TTL-based distributed lock using Redis |
-| Consumer Groups | Redis Streams for exactly-once message delivery |
+| Leader Election | TTL-based distributed lock using Redis with atomic Lua scripts |
 
 ## Configuration
 
@@ -150,7 +154,7 @@ go run ./cmd/main.go --cmt-home ~/.cometbft
 | `ETH_CLIENT_URL` | `http://localhost:8551` | Geth Engine API endpoint |
 | `JWT_SECRET` | (see docker compose) | 32-byte hex-encoded secret |
 | `REDIS_ADDR` | `localhost:6379` | Redis address |
-| `POSTGRES_DSN` | (see docker compose) | PostgreSQL connection string |
+| `POSTGRES_URL` | (see docker compose) | PostgreSQL connection string |
 
 ### Geth Genesis
 
