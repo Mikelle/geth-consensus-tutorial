@@ -231,11 +231,12 @@ func (bb *BlockBuilder) FinalizeBlock(ctx context.Context, payloadIDStr, executi
 	// Store in PostgreSQL
 	if bb.payloadStore != nil {
 		pgPayload := &postgres.Payload{
-			BlockNumber: payload.Number,
-			BlockHash:   payload.BlockHash.Hex(),
-			ParentHash:  payload.ParentHash.Hex(),
-			PayloadData: executionPayloadStr,
-			Timestamp:   int64(payload.Timestamp),
+			BlockNumber:  payload.Number,
+			BlockHash:    payload.BlockHash.Hex(),
+			ParentHash:   payload.ParentHash.Hex(),
+			PayloadData:  executionPayloadStr,
+			RequestsData: requestsStr,
+			Timestamp:    int64(payload.Timestamp),
 		}
 		if err := bb.payloadStore.SavePayload(ctx, pgPayload); err != nil {
 			bb.logger.Warn("Failed to store payload in PostgreSQL", "error", err)

@@ -20,6 +20,25 @@ services:
       timeout: 3s
       retries: 10
 
+  # Second Geth instance for member node
+  geth-member:
+    image: ethereum/client-go:v1.16.8
+    container_name: geth-member
+    entrypoint: ["/bin/sh", "/scripts/geth-entrypoint.sh"]
+    ports:
+      - "8546:8545"   # HTTP RPC
+      - "8552:8551"   # Engine API
+    volumes:
+      - geth-member-data:/root/.ethereum
+      - ./jwt:/jwt:ro
+      - ./genesis.json:/genesis/genesis.json:ro
+      - ./geth-entrypoint.sh:/scripts/geth-entrypoint.sh:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8545"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   # Redis for leader election and streams
   redis:
     image: redis:7-alpine
@@ -52,7 +71,27 @@ services:
       timeout: 3s
       retries: 10
 
+  # Second PostgreSQL for member node
+  postgres-member:
+    image: postgres:16-alpine
+    container_name: postgres-member
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: consensus
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-member-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
 volumes:
   geth-data:
+  geth-member-data:
   redis-data:
   postgres-data:
+  postgres-member-data:

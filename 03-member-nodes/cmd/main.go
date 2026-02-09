@@ -231,8 +231,23 @@ func NewMemberNodesApp(parentCtx context.Context, cfg Config, logger *slog.Logge
 	}
 
 	if cfg.Mode == "member" {
-		// Member mode: just sync from leader
-		app.syncer = syncpkg.NewSyncer(cfg.LeaderURL, payloadStore, logger.With("component", "Syncer"))
+		// Member mode: sync from leader and execute on local Geth
+		jwtBytes, err := hex.DecodeString(cfg.JWTSecret)
+		if err != nil {
+			cancel()
+			payloadStore.Close()
+			return nil, fmt.Errorf("decode JWT secret: %w", err)
+		}
+
+		engineCl, err := ethclient.NewEngineClient(ctx, cfg.EthClientURL, jwtBytes)
+		if err != nil {
+			cancel()
+			payloadStore.Close()
+			return nil, fmt.Errorf("create engine client: %w", err)
+		}
+
+		syncEngine := &syncerEngineAdapter{client: engineCl}
+		app.syncer = syncpkg.NewSyncer(cfg.LeaderURL, payloadStore, syncEngine, logger.With("component", "Syncer"))
 	} else {
 		// Leader mode: full consensus setup
 		redisCl, err := redisclient.NewClient(cfg.RedisAddr, cfg.RedisPassword, cfg.RedisStream)
@@ -513,6 +528,29 @@ func (a *engineClientAdapter) NewPayloadV4(ctx context.Context, payload engine.E
 }
 
 func (a *engineClientAdapter) HeaderByNumber(ctx context.Context, number interface{}) (*types.Header, error) {
+	var n *big.Int
+	if number != nil {
+		if v, ok := number.(*big.Int); ok {
+			n = v
+		}
+	}
+	return a.client.HeaderByNumber(ctx, n)
+}
+
+// syncerEngineAdapter adapts ethclient.EngineClient to sync.ExecutionEngine interface
+type syncerEngineAdapter struct {
+	client *ethclient.EngineClient
+}
+
+func (a *syncerEngineAdapter) NewPayloadV4(ctx context.Context, payload engine.ExecutableData, hashes []common.Hash, root *common.Hash, requests [][]byte) (engine.PayloadStatusV1, error) {
+	return a.client.NewPayloadV4(ctx, payload, hashes, root, requests)
+}
+
+func (a *syncerEngineAdapter) ForkchoiceUpdatedV3(ctx context.Context, state engine.ForkchoiceStateV1, attrs *engine.PayloadAttributes) (engine.ForkChoiceResponse, error) {
+	return a.client.ForkchoiceUpdatedV3(ctx, state, attrs)
+}
+
+func (a *syncerEngineAdapter) HeaderByNumber(ctx context.Context, number interface{}) (*types.Header, error) {
 	var n *big.Int
 	if number != nil {
 		if v, ok := number.(*big.Int); ok {

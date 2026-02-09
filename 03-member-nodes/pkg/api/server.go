@@ -42,11 +42,12 @@ func NewServer(store *postgres.PayloadStore, addr string, logger *slog.Logger) *
 
 // BlockResponse represents a block in API responses
 type BlockResponse struct {
-	BlockNumber uint64 `json:"block_number"`
-	BlockHash   string `json:"block_hash"`
-	ParentHash  string `json:"parent_hash"`
-	PayloadData string `json:"payload_data"`
-	Timestamp   int64  `json:"timestamp"`
+	BlockNumber  uint64 `json:"block_number"`
+	BlockHash    string `json:"block_hash"`
+	ParentHash   string `json:"parent_hash"`
+	PayloadData  string `json:"payload_data"`
+	RequestsData string `json:"requests_data"`
+	Timestamp    int64  `json:"timestamp"`
 }
 
 // BlocksResponse represents multiple blocks
@@ -68,11 +69,12 @@ func (s *Server) handleLatestBlock(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := &BlockResponse{
-		BlockNumber: payload.BlockNumber,
-		BlockHash:   payload.BlockHash,
-		ParentHash:  payload.ParentHash,
-		PayloadData: payload.PayloadData,
-		Timestamp:   payload.Timestamp,
+		BlockNumber:  payload.BlockNumber,
+		BlockHash:    payload.BlockHash,
+		ParentHash:   payload.ParentHash,
+		PayloadData:  payload.PayloadData,
+		RequestsData: payload.RequestsData,
+		Timestamp:    payload.Timestamp,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -109,11 +111,12 @@ func (s *Server) handleGetBlock(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := &BlockResponse{
-		BlockNumber: payload.BlockNumber,
-		BlockHash:   payload.BlockHash,
-		ParentHash:  payload.ParentHash,
-		PayloadData: payload.PayloadData,
-		Timestamp:   payload.Timestamp,
+		BlockNumber:  payload.BlockNumber,
+		BlockHash:    payload.BlockHash,
+		ParentHash:   payload.ParentHash,
+		PayloadData:  payload.PayloadData,
+		RequestsData: payload.RequestsData,
+		Timestamp:    payload.Timestamp,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -160,11 +163,12 @@ func (s *Server) handleGetBlocksAfter(w http.ResponseWriter, r *http.Request) {
 
 	for _, p := range payloads {
 		resp.Blocks = append(resp.Blocks, &BlockResponse{
-			BlockNumber: p.BlockNumber,
-			BlockHash:   p.BlockHash,
-			ParentHash:  p.ParentHash,
-			PayloadData: p.PayloadData,
-			Timestamp:   p.Timestamp,
+			BlockNumber:  p.BlockNumber,
+			BlockHash:    p.BlockHash,
+			ParentHash:   p.ParentHash,
+			PayloadData:  p.PayloadData,
+			RequestsData: p.RequestsData,
+			Timestamp:    p.Timestamp,
 		})
 	}
 
