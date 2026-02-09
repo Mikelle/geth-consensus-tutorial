@@ -97,9 +97,7 @@ func (m *RedisStateManager) SaveBlockState(ctx context.Context, state *BlockBuil
 
 // GetBlockBuildState retrieves the current block build state
 func (m *RedisStateManager) GetBlockBuildState(ctx context.Context) BlockBuildState {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
+	// Try Redis first (outside lock to avoid blocking on network call)
 	data, err := m.client.Get(ctx, m.stateKey())
 	if err == nil && data != "" {
 		var state BlockBuildState
@@ -108,6 +106,9 @@ func (m *RedisStateManager) GetBlockBuildState(ctx context.Context) BlockBuildSt
 		}
 	}
 
+	// Fall back to local cache
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	if m.localState == nil {
 		return BlockBuildState{CurrentStep: StepBuildBlock}
 	}

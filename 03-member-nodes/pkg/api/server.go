@@ -146,8 +146,11 @@ func (s *Server) handleGetBlocksAfter(w http.ResponseWriter, r *http.Request) {
 	}
 
 	limit, err := strconv.Atoi(limitStr)
-	if err != nil || limit > 1000 {
+	if err != nil || limit <= 0 {
 		limit = 100
+	}
+	if limit > 1000 {
+		limit = 1000
 	}
 
 	payloads, err := s.store.GetPayloadsAfter(r.Context(), after, limit)

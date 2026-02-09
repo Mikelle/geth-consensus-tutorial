@@ -57,7 +57,7 @@ func (le *LeaderElection) Stop() {
 	if wasLeader {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
-		le.client.Del(ctx, leaderKey)
+		le.client.DelIfValue(ctx, leaderKey, le.instanceID)
 	}
 }
 
@@ -102,25 +102,19 @@ func (le *LeaderElection) tryAcquireOrRenew(ctx context.Context) {
 		return
 	}
 
-	// Check if we're still the leader and renew
-	currentLeader, err := le.client.Get(ctx, leaderKey)
+	// Atomically renew only if we still hold the lock
+	renewed, err := le.client.RenewIfValue(ctx, leaderKey, le.instanceID, le.leaseTTL)
 	if err != nil {
-		le.logger.Warn("Failed to check current leader", "error", err)
+		le.logger.Warn("Failed to renew lease", "error", err)
 		le.isLeader = false
 		return
 	}
 
-	if currentLeader == le.instanceID {
-		// Renew the lease
-		if err := le.client.Set(ctx, leaderKey, le.instanceID, le.leaseTTL); err != nil {
-			le.logger.Warn("Failed to renew lease", "error", err)
-			le.isLeader = false
-			return
-		}
+	if renewed {
 		le.isLeader = true
 	} else {
 		if le.isLeader {
-			le.logger.Info("Lost leadership", "newLeader", currentLeader)
+			le.logger.Info("Lost leadership")
 		}
 		le.isLeader = false
 	}

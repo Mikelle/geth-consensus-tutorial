@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"math/big"
 	"net/http"
 	"sync/atomic"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/beacon/engine"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/mikelle/geth-consensus-tutorial/03-member-nodes/pkg/api"
 	"github.com/mikelle/geth-consensus-tutorial/03-member-nodes/pkg/postgres"
 	"github.com/vmihailenco/msgpack/v5"
 )
@@ -21,7 +23,7 @@ import (
 type ExecutionEngine interface {
 	NewPayloadV4(ctx context.Context, payload engine.ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash, requests [][]byte) (engine.PayloadStatusV1, error)
 	ForkchoiceUpdatedV3(ctx context.Context, state engine.ForkchoiceStateV1, attrs *engine.PayloadAttributes) (engine.ForkChoiceResponse, error)
-	HeaderByNumber(ctx context.Context, number interface{}) (*types.Header, error)
+	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
 }
 
 // Syncer synchronizes blocks from a leader node
@@ -48,21 +50,6 @@ func NewSyncer(leaderURL string, store *postgres.PayloadStore, engine ExecutionE
 	}
 }
 
-// BlockResponse matches the API response format
-type BlockResponse struct {
-	BlockNumber  uint64 `json:"block_number"`
-	BlockHash    string `json:"block_hash"`
-	ParentHash   string `json:"parent_hash"`
-	PayloadData  string `json:"payload_data"`
-	RequestsData string `json:"requests_data"`
-	Timestamp    int64  `json:"timestamp"`
-}
-
-// BlocksResponse for batch fetching
-type BlocksResponse struct {
-	Blocks []*BlockResponse `json:"blocks"`
-}
-
 // Start begins the sync loop
 func (s *Syncer) Start(ctx context.Context) {
 	// If we have a local Geth, use its head as the starting point
@@ -86,17 +73,41 @@ func (s *Syncer) Start(ctx context.Context) {
 }
 
 func (s *Syncer) syncLoop(ctx context.Context) {
-	ticker := time.NewTicker(100 * time.Millisecond)
-	defer ticker.Stop()
+	const (
+		baseInterval = 100 * time.Millisecond
+		maxBackoff   = 30 * time.Second
+	)
+
+	var consecutiveErrors int
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-ticker.C:
-			if err := s.syncBatch(ctx); err != nil {
-				s.logger.Warn("Sync batch failed", "error", err)
+		default:
+		}
+
+		if err := s.syncBatch(ctx); err != nil {
+			consecutiveErrors++
+			s.logger.Warn("Sync batch failed", "error", err)
+
+			delay := baseInterval * time.Duration(1<<min(consecutiveErrors, 8))
+			if delay > maxBackoff {
+				delay = maxBackoff
 			}
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(delay):
+			}
+			continue
+		}
+
+		consecutiveErrors = 0
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(baseInterval):
 		}
 	}
 }
@@ -120,7 +131,7 @@ func (s *Syncer) syncBatch(ctx context.Context) error {
 		return fmt.Errorf("unexpected status: %d", resp.StatusCode)
 	}
 
-	var blocksResp BlocksResponse
+	var blocksResp api.BlocksResponse
 	if err := json.NewDecoder(resp.Body).Decode(&blocksResp); err != nil {
 		return err
 	}
@@ -164,7 +175,7 @@ func (s *Syncer) syncBatch(ctx context.Context) error {
 	return nil
 }
 
-func (s *Syncer) executeBlock(ctx context.Context, block *BlockResponse) error {
+func (s *Syncer) executeBlock(ctx context.Context, block *api.BlockResponse) error {
 	// Decode execution payload
 	payloadBytes, err := base64.StdEncoding.DecodeString(block.PayloadData)
 	if err != nil {

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math/big"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
@@ -27,7 +28,7 @@ type EngineClient interface {
 	ForkchoiceUpdatedV3(ctx context.Context, state engine.ForkchoiceStateV1, attrs *engine.PayloadAttributes) (engine.ForkChoiceResponse, error)
 	GetPayloadV5(ctx context.Context, payloadID engine.PayloadID) (*engine.ExecutionPayloadEnvelope, error)
 	NewPayloadV4(ctx context.Context, payload engine.ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash, requests [][]byte) (engine.PayloadStatusV1, error)
-	HeaderByNumber(ctx context.Context, number interface{}) (*types.Header, error)
+	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
 }
 
 // BlockBuilder orchestrates block building with Redis and PostgreSQL
@@ -144,7 +145,11 @@ func (bb *BlockBuilder) GetPayload(ctx context.Context) error {
 
 	// Skip empty blocks — wait and let the run loop poll again
 	if len(payloadResp.ExecutionPayload.Transactions) == 0 {
-		time.Sleep(bb.buildEmptyBlocksDelay)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(bb.buildEmptyBlocksDelay):
+		}
 		return ErrEmptyBlock
 	}
 
@@ -228,6 +233,13 @@ func (bb *BlockBuilder) FinalizeBlock(ctx context.Context, payloadIDStr, executi
 		return fmt.Errorf("update fork choice: %w", err)
 	}
 
+	// Update local head (block is finalized on Geth regardless of storage outcome)
+	bb.executionHead = &state.ExecutionHead{
+		BlockHeight: payload.Number,
+		BlockHash:   payload.BlockHash[:],
+		BlockTime:   payload.Timestamp,
+	}
+
 	// Store in PostgreSQL
 	if bb.payloadStore != nil {
 		pgPayload := &postgres.Payload{
@@ -239,22 +251,15 @@ func (bb *BlockBuilder) FinalizeBlock(ctx context.Context, payloadIDStr, executi
 			Timestamp:    int64(payload.Timestamp),
 		}
 		if err := bb.payloadStore.SavePayload(ctx, pgPayload); err != nil {
-			bb.logger.Warn("Failed to store payload in PostgreSQL", "error", err)
+			return fmt.Errorf("store payload in PostgreSQL: %w", err)
 		}
 	}
 
 	// Publish to Redis stream
 	if bb.redisClient != nil {
 		if err := bb.redisClient.PublishBlock(ctx, payload.BlockHash.Hex(), executionPayloadStr, payload.Number); err != nil {
-			bb.logger.Warn("Failed to publish block to Redis", "error", err)
+			return fmt.Errorf("publish block to Redis: %w", err)
 		}
-	}
-
-	// Update local head
-	bb.executionHead = &state.ExecutionHead{
-		BlockHeight: payload.Number,
-		BlockHash:   payload.BlockHash[:],
-		BlockTime:   payload.Timestamp,
 	}
 
 	bb.logger.Info("Block finalized",

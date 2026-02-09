@@ -48,55 +48,33 @@ func (c *Client) PublishBlock(ctx context.Context, blockHash, payloadData string
 	}).Err()
 }
 
-// StreamEntry represents a block from the stream
-type StreamEntry struct {
-	ID          string
-	BlockHash   string
-	BlockNumber uint64
-	Payload     string
-	Timestamp   int64
+// RenewIfValue atomically renews a key's TTL only if it holds the given value
+func (c *Client) RenewIfValue(ctx context.Context, key, value string, expiration time.Duration) (bool, error) {
+	script := redis.NewScript(`
+if redis.call("get", KEYS[1]) == ARGV[1] then
+	redis.call("set", KEYS[1], ARGV[1], "PX", ARGV[2])
+	return 1
+end
+return 0`)
+	result, err := script.Run(ctx, c.rdb, []string{key}, value, expiration.Milliseconds()).Int64()
+	if err != nil {
+		return false, err
+	}
+	return result == 1, nil
 }
 
-// ReadBlocks reads blocks from the stream
-func (c *Client) ReadBlocks(ctx context.Context, lastID string, count int64) ([]StreamEntry, error) {
-	if lastID == "" {
-		lastID = "0"
-	}
-
-	streams, err := c.rdb.XRead(ctx, &redis.XReadArgs{
-		Streams: []string{c.streamName, lastID},
-		Count:   count,
-		Block:   100 * time.Millisecond,
-	}).Result()
-
-	if err == redis.Nil {
-		return nil, nil
-	}
+// DelIfValue atomically deletes a key only if it holds the given value
+func (c *Client) DelIfValue(ctx context.Context, key, value string) (bool, error) {
+	script := redis.NewScript(`
+if redis.call("get", KEYS[1]) == ARGV[1] then
+	return redis.call("del", KEYS[1])
+end
+return 0`)
+	result, err := script.Run(ctx, c.rdb, []string{key}, value).Int64()
 	if err != nil {
-		return nil, err
+		return false, err
 	}
-
-	var entries []StreamEntry
-	for _, stream := range streams {
-		for _, msg := range stream.Messages {
-			entry := StreamEntry{ID: msg.ID}
-			if v, ok := msg.Values["block_hash"].(string); ok {
-				entry.BlockHash = v
-			}
-			if v, ok := msg.Values["block_number"].(string); ok {
-				fmt.Sscanf(v, "%d", &entry.BlockNumber)
-			}
-			if v, ok := msg.Values["payload"].(string); ok {
-				entry.Payload = v
-			}
-			if v, ok := msg.Values["timestamp"].(string); ok {
-				fmt.Sscanf(v, "%d", &entry.Timestamp)
-			}
-			entries = append(entries, entry)
-		}
-	}
-
-	return entries, nil
+	return result == 1, nil
 }
 
 // Set stores a value with optional expiration

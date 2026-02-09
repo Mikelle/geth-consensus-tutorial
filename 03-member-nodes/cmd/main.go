@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -212,6 +211,10 @@ func runNode(c *cli.Context) error {
 
 // NewMemberNodesApp creates a new MemberNodesApp
 func NewMemberNodesApp(parentCtx context.Context, cfg Config, logger *slog.Logger) (*MemberNodesApp, error) {
+	if cfg.Mode != "leader" && cfg.Mode != "member" {
+		return nil, fmt.Errorf("invalid mode %q: must be 'leader' or 'member'", cfg.Mode)
+	}
+
 	ctx, cancel := context.WithCancel(parentCtx)
 
 	// Connect to PostgreSQL
@@ -261,12 +264,16 @@ func NewMemberNodesApp(parentCtx context.Context, cfg Config, logger *slog.Logge
 		jwtBytes, err := hex.DecodeString(cfg.JWTSecret)
 		if err != nil {
 			cancel()
+			redisCl.Close()
+			payloadStore.Close()
 			return nil, fmt.Errorf("decode JWT secret: %w", err)
 		}
 
 		engineCl, err := ethclient.NewEngineClient(ctx, cfg.EthClientURL, jwtBytes)
 		if err != nil {
 			cancel()
+			redisCl.Close()
+			payloadStore.Close()
 			return nil, fmt.Errorf("create engine client: %w", err)
 		}
 
@@ -469,7 +476,7 @@ func (app *MemberNodesApp) setConnectionStatus(err error) {
 		return
 	}
 
-	if strings.Contains(err.Error(), "connection refused") {
+	if errors.Is(err, syscall.ECONNREFUSED) {
 		app.connectionRefused = true
 		app.logger.Warn("Geth connection refused")
 	}
@@ -527,14 +534,8 @@ func (a *engineClientAdapter) NewPayloadV4(ctx context.Context, payload engine.E
 	return a.client.NewPayloadV4(ctx, payload, hashes, root, requests)
 }
 
-func (a *engineClientAdapter) HeaderByNumber(ctx context.Context, number interface{}) (*types.Header, error) {
-	var n *big.Int
-	if number != nil {
-		if v, ok := number.(*big.Int); ok {
-			n = v
-		}
-	}
-	return a.client.HeaderByNumber(ctx, n)
+func (a *engineClientAdapter) HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error) {
+	return a.client.HeaderByNumber(ctx, number)
 }
 
 // syncerEngineAdapter adapts ethclient.EngineClient to sync.ExecutionEngine interface
@@ -550,12 +551,6 @@ func (a *syncerEngineAdapter) ForkchoiceUpdatedV3(ctx context.Context, state eng
 	return a.client.ForkchoiceUpdatedV3(ctx, state, attrs)
 }
 
-func (a *syncerEngineAdapter) HeaderByNumber(ctx context.Context, number interface{}) (*types.Header, error) {
-	var n *big.Int
-	if number != nil {
-		if v, ok := number.(*big.Int); ok {
-			n = v
-		}
-	}
-	return a.client.HeaderByNumber(ctx, n)
+func (a *syncerEngineAdapter) HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error) {
+	return a.client.HeaderByNumber(ctx, number)
 }
