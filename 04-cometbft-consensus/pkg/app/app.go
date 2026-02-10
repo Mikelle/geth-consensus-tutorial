@@ -202,6 +202,10 @@ func (app *GethConsensusApp) FinalizeBlock(ctx context.Context, req *abcitypes.R
 	payload := msg.ExecutionPayload
 	requests := msg.Requests
 
+	if app.execHead == nil {
+		return nil, fmt.Errorf("execution head not initialized")
+	}
+
 	// Submit to Geth via NewPayload
 	parentHash := app.execHead.BlockHash
 	status, err := app.engineCl.NewPayloadV4(ctx, *payload, []common.Hash{}, &parentHash, requests)
@@ -210,11 +214,11 @@ func (app *GethConsensusApp) FinalizeBlock(ctx context.Context, req *abcitypes.R
 	}
 
 	if status.Status == engine.INVALID {
-		msg := "unknown"
+		errMsg := "unknown"
 		if status.ValidationError != nil {
-			msg = *status.ValidationError
+			errMsg = *status.ValidationError
 		}
-		return nil, fmt.Errorf("payload invalid: %s", msg)
+		return nil, fmt.Errorf("payload invalid: %s", errMsg)
 	}
 
 	// Update forkchoice to set the new head
@@ -320,10 +324,11 @@ func (app *GethConsensusApp) buildBlock(ctx context.Context, timestamp int64) (*
 	return payloadResp.ExecutionPayload, payloadResp.Requests, nil
 }
 
-// validatePayload checks that the payload is valid
+// validatePayload checks that the payload is valid.
+// execHead must be set before calling this (guaranteed by InitChain).
 func (app *GethConsensusApp) validatePayload(payload *engine.ExecutableData) error {
 	if app.execHead == nil {
-		return nil // Skip validation on first block
+		return fmt.Errorf("execution head not initialized")
 	}
 
 	expectedHeight := app.execHead.BlockHeight + 1

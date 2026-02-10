@@ -102,7 +102,8 @@ func runNode(c *cli.Context) error {
 	// Create ABCI application
 	abciApp := app.NewGethConsensusApp(db, &engineClientAdapter{client: engineCl}, logger)
 
-	// Load CometBFT config
+	// Load CometBFT config — DefaultConfig() is sufficient for a single-validator
+	// tutorial setup. Production deployments should load config.toml via viper.
 	config := cmtcfg.DefaultConfig()
 	config.SetRoot(cmtHome)
 	config.ProxyApp = "kvstore" // Not used, we provide the app directly
