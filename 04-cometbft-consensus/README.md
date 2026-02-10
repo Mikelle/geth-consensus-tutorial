@@ -1,4 +1,4 @@
-# Part 5: CometBFT Consensus - BFT Finality for Geth
+# Part 4: CometBFT Consensus - BFT Finality for Geth
 
 This part demonstrates how to integrate **CometBFT** (formerly Tendermint) as a Byzantine Fault Tolerant (BFT) consensus layer for Geth, providing instant finality and multi-validator support.
 
@@ -6,7 +6,7 @@ This part demonstrates how to integrate **CometBFT** (formerly Tendermint) as a 
 
 The previous parts of this tutorial showed simpler consensus mechanisms:
 - **Part 2**: Single node (no fault tolerance)
-- **Parts 3-4**: Redis-based leader election (crash fault tolerant)
+- **Part 3**: Redis-based leader election (crash fault tolerant)
 
 CometBFT provides **Byzantine Fault Tolerance (BFT)**, meaning the network can tolerate up to 1/3 of validators being malicious or faulty while still reaching consensus. This is critical for production blockchain systems.
 

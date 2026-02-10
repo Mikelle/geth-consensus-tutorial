@@ -1,4 +1,4 @@
-// Part 5: CometBFT Consensus
+// Part 4: CometBFT Consensus
 //
 // This example demonstrates BFT consensus for Geth using CometBFT:
 // - ABCI (Application Blockchain Interface) integration
@@ -14,6 +14,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log/slog"
+	"math/big"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -162,8 +163,8 @@ type engineClientAdapter struct {
 	client *ethclient.EngineClient
 }
 
-func (a *engineClientAdapter) HeaderByNumber(ctx context.Context, number interface{}) (*types.Header, error) {
-	return a.client.HeaderByNumber(ctx, nil)
+func (a *engineClientAdapter) HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error) {
+	return a.client.HeaderByNumber(ctx, number)
 }
 
 func (a *engineClientAdapter) ForkchoiceUpdatedV3(ctx context.Context, state engine.ForkchoiceStateV1, attrs *engine.PayloadAttributes) (engine.ForkChoiceResponse, error) {
