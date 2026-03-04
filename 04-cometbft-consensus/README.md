@@ -203,7 +203,7 @@ func (app *GethConsensusApp) FinalizeBlock(ctx context.Context, req *abcitypes.R
 
 ```bash
 # Install CometBFT
-go install github.com/cometbft/cometbft/cmd/cometbft@v0.38.11
+go install github.com/cometbft/cometbft/cmd/cometbft@v0.38.21
 
 # Verify installation
 cometbft version
@@ -323,8 +323,11 @@ In each node's `config.toml`:
 
 ```toml
 [p2p]
-persistent_peers = "node0_id@node0:26656,node1_id@node1:26656,..."
+persistent_peers = "node0_id@127.0.0.1:26656,node1_id@127.0.0.1:26756,node2_id@127.0.0.1:26856,node3_id@127.0.0.1:26956"
+allow_duplicate_ip = true
 ```
+
+Each node also needs a unique `laddr` for p2p and RPC. Space ports apart (e.g. by 100) to avoid collisions.
 
 ### 4. Start All Nodes
 
@@ -424,18 +427,15 @@ All validators must:
 
 ## Next Steps
 
-- **Vote Extensions**: Extend CometBFT votes with custom data (e.g., preconfirmations)
+- **Vote Extensions**: Extend CometBFT votes with custom data
 - **State Sync**: Enable fast node synchronization
 - **Light Clients**: Support lightweight verification
-- **MEV Protection**: Integrate encrypted mempools
 
 ## References
 
 - [CometBFT Documentation](https://docs.cometbft.com/)
 - [ABCI Specification](https://github.com/cometbft/cometbft/blob/main/spec/abci/abci++_basic_concepts.md)
 - [Ethereum Engine API](https://github.com/ethereum/execution-apis/tree/main/src/engine)
-- [mev-commit-geth-cl](https://github.com/primev/mev-commit) - Production implementation
-
 ## License
 
 MIT
