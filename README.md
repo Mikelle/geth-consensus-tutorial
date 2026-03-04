@@ -7,7 +7,7 @@ Build a custom consensus layer for go-ethereum (Geth) from scratch. This tutoria
 1. [Writing Custom Consensus for Geth: A Practical Guide](https://mikelle.github.io/blog/custom-geth-consensus) - Engine API fundamentals
 2. [Single Node Consensus: Building a Complete Implementation](https://mikelle.github.io/blog/single-node-consensus) - Production-ready single node
 3. [Distributed Consensus with Redis, PostgreSQL, and Member Nodes](https://mikelle.github.io/blog/redis-distributed-consensus) - Leader election, storage, and horizontal scaling
-4. CometBFT Integration: BFT Finality for Geth - Byzantine fault tolerance *(coming soon)*
+4. [CometBFT Integration: BFT Finality for Geth](https://mikelle.github.io/blog/cometbft-geth-consensus) - Byzantine fault tolerance
 
 ## Repository Structure
 
@@ -172,10 +172,6 @@ This tutorial code is simplified for learning. For production, consider:
 - **Monitoring**: Add comprehensive Prometheus metrics
 - **Rate Limiting**: Protect API endpoints
 - **Circuit Breakers**: Handle Geth unavailability gracefully
-
-## Production Implementation
-
-This tutorial is based on the [mev-commit consensus layer](https://github.com/primev/mev-commit/tree/main/cl), which powers encrypted preconfirmations on Ethereum.
 
 ## License
 
