@@ -1,0 +1,78 @@
+services:
+  geth0:
+    image: ethereum/client-go:v1.16.8
+    container_name: geth0
+    entrypoint: ["/bin/sh", "/scripts/geth-entrypoint.sh"]
+    ports:
+      - "8545:8545"
+      - "8551:8551"
+    volumes:
+      - geth0-data:/root/.ethereum
+      - ../jwt:/jwt:ro
+      - ../genesis.json:/genesis/genesis.json:ro
+      - ../geth-entrypoint.sh:/scripts/geth-entrypoint.sh:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8545"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  geth1:
+    image: ethereum/client-go:v1.16.8
+    container_name: geth1
+    entrypoint: ["/bin/sh", "/scripts/geth-entrypoint.sh"]
+    ports:
+      - "8546:8545"
+      - "8552:8551"
+    volumes:
+      - geth1-data:/root/.ethereum
+      - ../jwt:/jwt:ro
+      - ../genesis.json:/genesis/genesis.json:ro
+      - ../geth-entrypoint.sh:/scripts/geth-entrypoint.sh:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8545"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  geth2:
+    image: ethereum/client-go:v1.16.8
+    container_name: geth2
+    entrypoint: ["/bin/sh", "/scripts/geth-entrypoint.sh"]
+    ports:
+      - "8547:8545"
+      - "8553:8551"
+    volumes:
+      - geth2-data:/root/.ethereum
+      - ../jwt:/jwt:ro
+      - ../genesis.json:/genesis/genesis.json:ro
+      - ../geth-entrypoint.sh:/scripts/geth-entrypoint.sh:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8545"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  geth3:
+    image: ethereum/client-go:v1.16.8
+    container_name: geth3
+    entrypoint: ["/bin/sh", "/scripts/geth-entrypoint.sh"]
+    ports:
+      - "8548:8545"
+      - "8554:8551"
+    volumes:
+      - geth3-data:/root/.ethereum
+      - ../jwt:/jwt:ro
+      - ../genesis.json:/genesis/genesis.json:ro
+      - ../geth-entrypoint.sh:/scripts/geth-entrypoint.sh:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8545"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  geth0-data:
+  geth1-data:
+  geth2-data:
+  geth3-data:

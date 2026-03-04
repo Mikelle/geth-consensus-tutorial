@@ -263,7 +263,15 @@ time=... level=INFO msg="PrepareProposal called" height=2
 
 ## Multi-Validator Setup
 
-For a production-like setup with multiple validators:
+For a production-like setup with multiple validators (BFT requires n >= 3f+1, so 4 validators to tolerate 1 Byzantine fault):
+
+### 0. Start Four Geth Instances
+
+```bash
+docker compose -f docker-compose.multi.yml up -d
+```
+
+This starts four isolated Geth containers on separate Engine API ports (8551, 8552, 8553, 8554).
 
 ### 1. Generate Validator Keys
 
@@ -320,16 +328,20 @@ persistent_peers = "node0_id@node0:26656,node1_id@node1:26656,..."
 
 ### 4. Start All Nodes
 
-Each node needs:
-- Its own CometBFT instance
-- Its own Geth instance (or shared if using remote Engine API)
+Each node needs its own CometBFT instance and its own Geth instance. The Engine API ports match `docker-compose.multi.yml`:
 
 ```bash
 # Node 0
-./cometbft-geth --cmt-home ~/.cometbft-node0 --eth-client-url http://geth0:8551
+go run ./cmd/main.go --cmt-home ~/.cometbft-node0 --eth-client-url http://localhost:8551
 
 # Node 1
-./cometbft-geth --cmt-home ~/.cometbft-node1 --eth-client-url http://geth1:8551
+go run ./cmd/main.go --cmt-home ~/.cometbft-node1 --eth-client-url http://localhost:8552
+
+# Node 2
+go run ./cmd/main.go --cmt-home ~/.cometbft-node2 --eth-client-url http://localhost:8553
+
+# Node 3
+go run ./cmd/main.go --cmt-home ~/.cometbft-node3 --eth-client-url http://localhost:8554
 ```
 
 ## Key Concepts
