@@ -42,7 +42,7 @@ CometBFT provides **Byzantine Fault Tolerance (BFT)**, meaning the network can t
 │  │  ├─ PrepareProposal() → Build block via Engine API      │   │
 │  │  ├─ ProcessProposal() → Validate proposed block         │   │
 │  │  ├─ FinalizeBlock()   → Execute via NewPayload          │   │
-│  │  └─ Commit()          → Persist state                   │   │
+│  │  └─ Commit()          → Acknowledge block                │   │
 │  └─────────────────────────────────────────────────────────┘   │
 │                              │                                  │
 │                     Engine API (HTTP + JWT)                     │
@@ -228,7 +228,7 @@ cometbft init --home ~/.cometbft
 
 ```bash
 # From repo root
-docker-compose up -d geth
+docker compose up -d geth
 ```
 
 ### Start CometBFT + App
