@@ -33,6 +33,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/mikelle/geth-consensus-tutorial/04-cometbft-consensus/pkg/app"
 	"github.com/mikelle/geth-consensus-tutorial/04-cometbft-consensus/pkg/ethclient"
+	"github.com/spf13/viper"
 	"github.com/urfave/cli/v2"
 )
 
@@ -102,16 +103,23 @@ func runNode(c *cli.Context) error {
 	// Create ABCI application
 	abciApp := app.NewGethConsensusApp(db, &engineClientAdapter{client: engineCl}, logger)
 
-	// Load CometBFT config — DefaultConfig() is sufficient for a single-validator
-	// tutorial setup. Production deployments should load config.toml via viper.
+	// Load CometBFT config from config.toml
 	config := cmtcfg.DefaultConfig()
 	config.SetRoot(cmtHome)
-	config.ProxyApp = "kvstore" // Not used, we provide the app directly
 
-	// Check if config files exist
-	if _, err := os.Stat(filepath.Join(cmtHome, "config", "config.toml")); os.IsNotExist(err) {
+	configFile := filepath.Join(cmtHome, "config", "config.toml")
+	if _, err := os.Stat(configFile); os.IsNotExist(err) {
 		return fmt.Errorf("CometBFT not initialized. Run: cometbft init --home %s", cmtHome)
 	}
+
+	viper.SetConfigFile(configFile)
+	if err := viper.ReadInConfig(); err != nil {
+		return fmt.Errorf("read config.toml: %w", err)
+	}
+	if err := viper.Unmarshal(config); err != nil {
+		return fmt.Errorf("unmarshal config: %w", err)
+	}
+	config.SetRoot(cmtHome)
 
 	// Load validator key
 	pv := privval.LoadFilePV(
