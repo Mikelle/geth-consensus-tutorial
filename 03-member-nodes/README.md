@@ -1,6 +1,6 @@
 # Part 3: Member Nodes Architecture
 
-A distributed consensus system with Redis leader election, PostgreSQL persistence, and member nodes that sync blocks from the leader and execute them on their own Geth — making each member a full execution replica.
+A distributed consensus system with Redis leader election, PostgreSQL persistence, and member nodes that sync blocks from the leader and execute them on their own Geth, making each member a full execution replica.
 
 ## Features
 
@@ -159,7 +159,7 @@ CREATE TABLE payloads (
 
 ### Sync Protocol
 
-Members poll the leader with exponential backoff on failures (200ms–30s):
+Members poll the leader with exponential backoff on failures (200ms to 30s):
 
 ```
 GET /blocks?after=1000&limit=100
@@ -183,7 +183,7 @@ Response:
 
 ### Scaling Patterns
 
-1. **Read Scaling**: Add member nodes — each is a full execution replica
+1. **Read Scaling**: Add member nodes, each is a full execution replica
 2. **Write Scaling**: Leader handles all writes
 3. **Geographic Distribution**: Members in different regions
 
