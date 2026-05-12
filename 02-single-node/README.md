@@ -1,6 +1,6 @@
 # Part 2: Single Node Consensus
 
-A complete, production-ready single-node consensus implementation with:
+A single-node consensus implementation with:
 
 - Retry logic with exponential backoff
 - Health checks for orchestration
