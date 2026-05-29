@@ -1,5 +1,6 @@
 # Binaries
 bin/
+main
 *.exe
 *.exe~
 *.dll
