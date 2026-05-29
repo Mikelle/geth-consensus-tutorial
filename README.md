@@ -68,68 +68,49 @@ go run ./cmd/main.go --cmt-home ~/.cometbft
 
 ### Part 1: Engine API
 
-```
-┌─────────────────┐
-│  Your Code      │
-│  (main.go)      │
-└────────┬────────┘
-         │ Engine API (HTTP + JWT)
-┌────────▼────────┐
-│      Geth       │
-└─────────────────┘
+```mermaid
+flowchart TD
+    Code["Your Code<br/>(main.go)"] -->|"Engine API (HTTP + JWT)"| Geth["Geth"]
 ```
 
 ### Part 2: Single Node
 
-```
-┌─────────────────────────────────────┐
-│          SingleNodeApp              │
-│  ┌────────────┐  ┌───────────────┐  │
-│  │BlockBuilder│  │ StateManager  │  │
-│  └────────────┘  └───────────────┘  │
-└────────────────┬────────────────────┘
-                 │
-         ┌───────▼───────┐
-         │     Geth      │
-         └───────────────┘
+```mermaid
+flowchart TD
+    subgraph App["SingleNodeApp"]
+        BlockBuilder["BlockBuilder"]
+        StateManager["StateManager"]
+    end
+    App --> Geth["Geth"]
 ```
 
 ### Part 3: Member Nodes
 
-```
-┌─────────────────────────────┐
-│        Leader Node          │
-│  ┌──────┐  ┌─────┐  ┌─────┐ │
-│  │ Geth │  │Redis│  │ PG  │ │
-│  └──────┘  └─────┘  └──┬──┘ │
-└────────────────────────┼────┘
-                         │
-           ┌─────────────┼─────────────┐
-           ▼             ▼             ▼
-      ┌─────────┐   ┌─────────┐   ┌─────────┐
-      │Member 1 │   │Member 2 │   │Member 3 │
-      │ Syncer  │   │ Syncer  │   │ Syncer  │
-      │ + Geth  │   │ + Geth  │   │ + Geth  │
-      │ + PG    │   │ + PG    │   │ + PG    │
-      └─────────┘   └─────────┘   └─────────┘
+```mermaid
+flowchart TD
+    subgraph Leader["Leader Node"]
+        Geth["Geth"]
+        Redis["Redis"]
+        PG[("PG")]
+    end
+    Leader --> M1["Member 1<br/>Syncer + Geth + PG"]
+    Leader --> M2["Member 2<br/>Syncer + Geth + PG"]
+    Leader --> M3["Member 3<br/>Syncer + Geth + PG"]
 ```
 
 ### Part 4: CometBFT Consensus
 
-```
-        CometBFT P2P Network
- ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
- │ Validator 1 │ │ Validator 2 │ │ Validator 3 │
- │  CometBFT   ├─┤  CometBFT   ├─┤  CometBFT   │
- └──────┬──────┘ └──────┬──────┘ └──────┬──────┘
-        │ ABCI          │ ABCI          │ ABCI
- ┌──────▼──────┐ ┌──────▼──────┐ ┌──────▼──────┐
- │  App + DB   │ │  App + DB   │ │  App + DB   │
- └──────┬──────┘ └──────┬──────┘ └──────┬──────┘
-        │ Engine        │ Engine        │ Engine
- ┌──────▼──────┐ ┌──────▼──────┐ ┌──────▼──────┐
- │   Geth 1    │ │   Geth 2    │ │   Geth 3    │
- └─────────────┘ └─────────────┘ └─────────────┘
+```mermaid
+flowchart TD
+    subgraph P2P["CometBFT P2P Network"]
+        V1["Validator 1<br/>CometBFT"] --- V2["Validator 2<br/>CometBFT"] --- V3["Validator 3<br/>CometBFT"]
+    end
+    V1 -->|"ABCI"| A1["App + DB"]
+    V2 -->|"ABCI"| A2["App + DB"]
+    V3 -->|"ABCI"| A3["App + DB"]
+    A1 -->|"Engine"| G1["Geth 1"]
+    A2 -->|"Engine"| G2["Geth 2"]
+    A3 -->|"Engine"| G3["Geth 3"]
 ```
 
 ## Key Concepts

@@ -79,43 +79,28 @@ go run ./cmd/main.go --instance-id member-1 --mode member \
 
 ### System Overview
 
-```
-                    ┌─────────────────────────────────────┐
-                    │              Leader                 │
-                    │  ┌──────────┐    ┌──────────────┐  │
-                    │  │ Engine   │───►│ Block        │  │
-                    │  │ Client   │    │ Builder      │  │
-                    │  └──────────┘    └──────┬───────┘  │
-                    │                         │          │
-                    │  ┌──────────┐    ┌──────▼───────┐  │
-                    │  │ Leader   │    │ PostgreSQL   │  │
-                    │  │ Election │    │ Store        │  │
-                    │  └────┬─────┘    └──────┬───────┘  │
-                    │       │                 │          │
-                    │       ▼                 ▼          │
-                    │  ┌──────────┐    ┌──────────────┐  │
-                    │  │ Redis    │    │ HTTP API     │  │
-                    │  │          │    │ :8090        │  │
-                    │  └──────────┘    └──────┬───────┘  │
-                    └─────────────────────────┼──────────┘
-                                              │
-               ┌──────────────────────────────┼──────────────────────────────┐
-               │                              │                              │
-               ▼                              ▼                              ▼
-        ┌─────────────┐               ┌─────────────┐               ┌─────────────┐
-        │  Member 1   │               │  Member 2   │               │  Member N   │
-        │  ┌───────┐  │               │  ┌───────┐  │               │  ┌───────┐  │
-        │  │Syncer │  │               │  │Syncer │  │               │  │Syncer │  │
-        │  └───┬───┘  │               │  └───┬───┘  │               │  └───┬───┘  │
-        │      ▼      │               │      ▼      │               │      ▼      │
-        │  ┌───────┐  │               │  ┌───────┐  │               │  ┌───────┐  │
-        │  │ Geth  │  │               │  │ Geth  │  │               │  │ Geth  │  │
-        │  └───┬───┘  │               │  └───┬───┘  │               │  └───┬───┘  │
-        │      ▼      │               │      ▼      │               │      ▼      │
-        │  ┌───────┐  │               │  ┌───────┐  │               │  ┌───────┐  │
-        │  │  PG   │  │               │  │  PG   │  │               │  │  PG   │  │
-        │  └───────┘  │               │  └───────┘  │               │  └───────┘  │
-        └─────────────┘               └─────────────┘               └─────────────┘
+```mermaid
+flowchart TD
+    subgraph Leader["Leader"]
+        EC["Engine Client"] --> BB["Block Builder"]
+        BB --> PGStore["PostgreSQL Store"]
+        LE["Leader Election"] --> Redis["Redis"]
+        PGStore --> API["HTTP API :8090"]
+    end
+
+    API --> M1
+    API --> M2
+    API --> MN
+
+    subgraph M1["Member 1"]
+        S1["Syncer"] --> G1["Geth"] --> P1[("PG")]
+    end
+    subgraph M2["Member 2"]
+        S2["Syncer"] --> G2["Geth"] --> P2[("PG")]
+    end
+    subgraph MN["Member N"]
+        SN["Syncer"] --> GN["Geth"] --> PN[("PG")]
+    end
 ```
 
 ### HTTP API Endpoints

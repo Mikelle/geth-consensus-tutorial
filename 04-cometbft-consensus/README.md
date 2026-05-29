@@ -21,96 +21,55 @@ CometBFT tolerates up to 1/3 of validators being malicious or faulty while still
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    CometBFT Consensus                            │
-│  ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐     │
-│  │Validator1│   │Validator2│   │Validator3│   │Validator4│     │
-│  └────┬─────┘   └────┬─────┘   └────┬─────┘   └────┬─────┘     │
-│       │              │              │              │            │
-│       └──────────────┴──────┬───────┴──────────────┘            │
-│                             │                                   │
-│                      P2P Gossip Network                         │
-└─────────────────────────────┼───────────────────────────────────┘
-                              │
-                     ABCI (Local Socket)
-                              │
-┌─────────────────────────────▼───────────────────────────────────┐
-│                    ABCI Application                              │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  GethConsensusApp                                        │   │
-│  │  ├─ PrepareProposal() → Build block via Engine API      │   │
-│  │  ├─ ProcessProposal() → Validate proposed block         │   │
-│  │  ├─ FinalizeBlock()   → Execute via NewPayload          │   │
-│  │  └─ Commit()          → Acknowledge block                │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                              │                                  │
-│                     Engine API (HTTP + JWT)                     │
-└──────────────────────────────┼──────────────────────────────────┘
-                               │
-┌──────────────────────────────▼──────────────────────────────────┐
-│                         Geth                                     │
-│  ├─ Block Builder        (Assembles transactions)               │
-│  ├─ State Machine        (Executes EVM)                         │
-│  └─ Storage              (Persists chain)                       │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    subgraph Consensus["CometBFT Consensus"]
+        V1["Validator1"]
+        V2["Validator2"]
+        V3["Validator3"]
+        V4["Validator4"]
+        P2P["P2P Gossip Network"]
+        V1 --- P2P
+        V2 --- P2P
+        V3 --- P2P
+        V4 --- P2P
+    end
+
+    Consensus -->|"ABCI (Local Socket)"| App
+
+    subgraph App["ABCI Application (GethConsensusApp)"]
+        PP["PrepareProposal() &rarr; Build block via Engine API"]
+        PRP["ProcessProposal() &rarr; Validate proposed block"]
+        FB["FinalizeBlock() &rarr; Execute via NewPayload"]
+        CM["Commit() &rarr; Acknowledge block"]
+    end
+
+    App -->|"Engine API (HTTP + JWT)"| Geth
+
+    subgraph Geth["Geth"]
+        GBB["Block Builder (Assembles transactions)"]
+        GSM["State Machine (Executes EVM)"]
+        GST["Storage (Persists chain)"]
+    end
 ```
 
 ## CometBFT Consensus Flow
 
 CometBFT uses a three-phase commit protocol:
 
-```
-Height H
-    │
-    ▼
-┌─────────────────────────────────────────────────────────────┐
-│  PROPOSE PHASE                                               │
-│  ┌─────────────────────────────────────────────────────────┐│
-│  │ Proposer calls PrepareProposal()                        ││
-│  │   1. ForkchoiceUpdatedV3 (start building)               ││
-│  │   2. Wait 300ms for transactions                        ││
-│  │   3. GetPayloadV5 (retrieve built block)                ││
-│  │   4. Wrap payload in CometBFT transaction               ││
-│  └─────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────┘
-    │
-    ▼
-┌─────────────────────────────────────────────────────────────┐
-│  PREVOTE PHASE                                               │
-│  ┌─────────────────────────────────────────────────────────┐│
-│  │ All validators call ProcessProposal()                   ││
-│  │   • Verify parent hash matches local head               ││
-│  │   • Verify block height is sequential                   ││
-│  │   • Verify timestamp is valid                           ││
-│  │   • Vote ACCEPT or REJECT                               ││
-│  └─────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────┘
-    │
-    ▼
-┌─────────────────────────────────────────────────────────────┐
-│  PRECOMMIT PHASE                                             │
-│  ┌─────────────────────────────────────────────────────────┐│
-│  │ Validators commit if >2/3 prevoted                      ││
-│  │   • Sign precommit message                              ││
-│  │   • Broadcast to network                                ││
-│  └─────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────┘
-    │
-    ▼
-┌─────────────────────────────────────────────────────────────┐
-│  FINALIZATION                                                │
-│  ┌─────────────────────────────────────────────────────────┐│
-│  │ All nodes call FinalizeBlock()                          ││
-│  │   1. NewPayloadV4 (submit to Geth)                      ││
-│  │   2. ForkchoiceUpdatedV3 (set as head)                  ││
-│  │   3. Save execution head to DB                          ││
-│  │   4. Block is FINAL - no reorgs possible                ││
-│  └─────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────┘
-    │
-    ▼
-Height H+1
+```mermaid
+flowchart TD
+    H["Height H"] --> Propose
+
+    Propose["<b>PROPOSE PHASE</b><br/>Proposer calls PrepareProposal()<br/>1. ForkchoiceUpdatedV3 (start building)<br/>2. Wait 300ms for transactions<br/>3. GetPayloadV5 (retrieve built block)<br/>4. Wrap payload in CometBFT transaction"]
+
+    Prevote["<b>PREVOTE PHASE</b><br/>All validators call ProcessProposal()<br/>• Verify parent hash matches local head<br/>• Verify block height is sequential<br/>• Verify timestamp is valid<br/>• Vote ACCEPT or REJECT"]
+
+    Precommit["<b>PRECOMMIT PHASE</b><br/>Validators commit if >2/3 prevoted<br/>• Sign precommit message<br/>• Broadcast to network"]
+
+    Finalization["<b>FINALIZATION</b><br/>All nodes call FinalizeBlock()<br/>1. NewPayloadV4 (submit to Geth)<br/>2. ForkchoiceUpdatedV3 (set as head)<br/>3. Save execution head to DB<br/>4. Block is FINAL, no reorgs possible"]
+
+    Propose --> Prevote --> Precommit --> Finalization --> H1["Height H+1"]
 ```
 
 ## ABCI Interface
@@ -373,15 +332,9 @@ This architecture mirrors Ethereum's post-merge design:
 
 ### Payload Lifecycle
 
-```
-PrepareProposal           ProcessProposal           FinalizeBlock
-     │                          │                        │
-     ▼                          ▼                        ▼
-┌─────────────┐           ┌──────────┐           ┌──────────────┐
-│Build Payload│    ──▶    │ Validate │    ──▶    │   Execute    │
-│(Geth builds)│           │ (Check   │           │ (NewPayload) │
-│             │           │  hashes) │           │              │
-└─────────────┘           └──────────┘           └──────────────┘
+```mermaid
+flowchart LR
+    A["PrepareProposal<br/>Build Payload<br/>(Geth builds)"] --> B["ProcessProposal<br/>Validate<br/>(Check hashes)"] --> C["FinalizeBlock<br/>Execute<br/>(NewPayload)"]
 ```
 
 ## Comparison with Ethereum Beacon Chain

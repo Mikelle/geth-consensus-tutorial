@@ -55,13 +55,10 @@ go run ./cmd/main.go --instance-id node-1
 
 ### State Machine
 
-```
-┌──────────────┐  GetPayload()  ┌─────────────────┐
-│ StepBuildBlock │ ────────────► │ StepFinalizeBlock │
-└──────────────┘                └─────────────────┘
-        ▲                                │
-        └────────────────────────────────┘
-                  FinalizeBlock()
+```mermaid
+flowchart LR
+    Build["StepBuildBlock"] -->|"GetPayload()"| Finalize["StepFinalizeBlock"]
+    Finalize -->|"FinalizeBlock()"| Build
 ```
 
 ### Retry Logic
