@@ -1,6 +1,6 @@
 # Part 3: Member Nodes Architecture
 
-A distributed consensus system with Redis leader election, PostgreSQL persistence, and member nodes that sync blocks from the leader and execute them on their own Geth, making each member a full execution replica.
+A distributed consensus system with Redis leader election, PostgreSQL persistence, and member nodes that sync blocks from the leader and execute them on their own Geth. Each member is a full execution replica.
 
 ## Features
 

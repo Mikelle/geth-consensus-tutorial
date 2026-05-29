@@ -148,7 +148,7 @@ This tutorial code is simplified for learning. For production, consider:
 
 - **TLS**: Enable HTTPS for Engine API and inter-node communication
 - **Secrets Management**: Use Vault or similar for JWT secrets
-- **Monitoring**: Add comprehensive Prometheus metrics
+- **Monitoring**: Add Prometheus metrics
 - **Rate Limiting**: Protect API endpoints
 - **Circuit Breakers**: Handle Geth unavailability gracefully
 

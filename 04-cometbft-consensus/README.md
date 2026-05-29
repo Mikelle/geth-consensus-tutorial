@@ -1,8 +1,8 @@
 # Part 4: CometBFT Consensus - BFT Finality for Geth
 
-This part integrates **CometBFT** (formerly Tendermint) as a Byzantine Fault Tolerant (BFT) consensus layer for Geth, giving you instant finality and multi-validator support.
+This part integrates CometBFT (formerly Tendermint) as a Byzantine Fault Tolerant (BFT) consensus layer for Geth. It provides single-slot finality and supports multiple validators.
 
-## Why CometBFT + Geth?
+## Motivation
 
 The previous parts used simpler consensus mechanisms:
 - **Part 2**: Single node (no fault tolerance)
@@ -133,7 +133,7 @@ func (app *GethConsensusApp) FinalizeBlock(ctx context.Context, req *abcitypes.R
     fcs := engine.ForkchoiceStateV1{
         HeadBlockHash:      payload.BlockHash,
         SafeBlockHash:      payload.BlockHash,
-        FinalizedBlockHash: payload.BlockHash,  // Instant finality!
+        FinalizedBlockHash: payload.BlockHash,  // finalized immediately
     }
     app.engineCl.ForkchoiceUpdatedV3(ctx, fcs, nil)
 
