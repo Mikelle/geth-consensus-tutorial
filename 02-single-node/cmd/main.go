@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -38,16 +39,15 @@ type Config struct {
 
 // SingleNodeApp orchestrates block production
 type SingleNodeApp struct {
-	logger           *slog.Logger
-	cfg              Config
-	blockBuilder     *blockbuilder.BlockBuilder
-	stateManager     *state.LocalStateManager
-	appCtx           context.Context
-	cancel           context.CancelFunc
-	wg               sync.WaitGroup
-	runLoopStopped   chan struct{}
-	connectionRefused bool
-	connMu           sync.Mutex
+	logger            *slog.Logger
+	cfg               Config
+	blockBuilder      *blockbuilder.BlockBuilder
+	stateManager      *state.LocalStateManager
+	appCtx            context.Context
+	cancel            context.CancelFunc
+	wg                sync.WaitGroup
+	runLoopStopped    chan struct{}
+	connectionRefused atomic.Bool
 }
 
 func main() {
@@ -82,7 +82,7 @@ func main() {
 			&cli.DurationFlag{
 				Name:    "evm-build-delay",
 				Usage:   "Delay after ForkchoiceUpdated before GetPayload",
-				Value:   1 * time.Millisecond,
+				Value:   100 * time.Millisecond,
 				EnvVars: []string{"EVM_BUILD_DELAY"},
 			},
 			&cli.DurationFlag{
@@ -264,11 +264,7 @@ func (app *SingleNodeApp) healthHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	app.connMu.Lock()
-	refused := app.connectionRefused
-	app.connMu.Unlock()
-
-	if refused {
+	if app.connectionRefused.Load() {
 		http.Error(w, "ethereum unavailable", http.StatusServiceUnavailable)
 		return
 	}
@@ -285,16 +281,13 @@ func (app *SingleNodeApp) healthHandler(w http.ResponseWriter, r *http.Request) 
 }
 
 func (app *SingleNodeApp) setConnectionStatus(err error) {
-	app.connMu.Lock()
-	defer app.connMu.Unlock()
-
 	if err == nil {
-		app.connectionRefused = false
+		app.connectionRefused.Store(false)
 		return
 	}
 
 	if strings.Contains(err.Error(), "connection refused") {
-		app.connectionRefused = true
+		app.connectionRefused.Store(true)
 		app.logger.Warn("Geth connection refused")
 	}
 }

@@ -101,4 +101,3 @@ func toBlockNumArg(number *big.Int) string {
 	}
 	return hexutil.EncodeBig(number)
 }
-

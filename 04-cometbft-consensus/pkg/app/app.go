@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	keyExecutionHead = "execution_head"
+	keyExecutionHead  = "execution_head"
 	defaultBuildDelay = 300 * time.Millisecond
 )
 

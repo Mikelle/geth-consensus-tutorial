@@ -136,7 +136,11 @@ func (bb *BlockBuilder) GetPayload(ctx context.Context) error {
 
 	// Skip empty blocks — wait and let the run loop poll again
 	if len(payloadResp.ExecutionPayload.Transactions) == 0 {
-		time.Sleep(bb.buildEmptyBlocksDelay)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(bb.buildEmptyBlocksDelay):
+		}
 		return ErrEmptyBlock
 	}
 

@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -49,21 +50,20 @@ type Config struct {
 
 // MemberNodesApp orchestrates the full consensus system
 type MemberNodesApp struct {
-	logger           *slog.Logger
-	cfg              Config
-	blockBuilder     *blockbuilder.BlockBuilder
-	stateManager     state.StateManager
-	redisClient      *redisclient.Client
-	leaderElection   *redisclient.LeaderElection
-	payloadStore     *postgres.PayloadStore
-	apiServer        *api.Server
-	syncer           *syncpkg.Syncer
-	appCtx           context.Context
-	cancel           context.CancelFunc
-	wg               sync.WaitGroup
-	runLoopStopped   chan struct{}
-	connectionRefused bool
-	connMu           sync.Mutex
+	logger            *slog.Logger
+	cfg               Config
+	blockBuilder      *blockbuilder.BlockBuilder
+	stateManager      state.StateManager
+	redisClient       *redisclient.Client
+	leaderElection    *redisclient.LeaderElection
+	payloadStore      *postgres.PayloadStore
+	apiServer         *api.Server
+	syncer            *syncpkg.Syncer
+	appCtx            context.Context
+	cancel            context.CancelFunc
+	wg                sync.WaitGroup
+	runLoopStopped    chan struct{}
+	connectionRefused atomic.Bool
 }
 
 func main() {
@@ -104,7 +104,7 @@ func main() {
 			&cli.DurationFlag{
 				Name:    "evm-build-delay",
 				Usage:   "Delay after ForkchoiceUpdated before GetPayload",
-				Value:   1 * time.Millisecond,
+				Value:   100 * time.Millisecond,
 				EnvVars: []string{"EVM_BUILD_DELAY"},
 			},
 			&cli.DurationFlag{
@@ -433,11 +433,7 @@ func (app *MemberNodesApp) healthHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	app.connMu.Lock()
-	refused := app.connectionRefused
-	app.connMu.Unlock()
-
-	if refused {
+	if app.connectionRefused.Load() {
 		http.Error(w, "ethereum unavailable", http.StatusServiceUnavailable)
 		return
 	}
@@ -468,16 +464,13 @@ func (app *MemberNodesApp) memberHealthHandler(w http.ResponseWriter, r *http.Re
 }
 
 func (app *MemberNodesApp) setConnectionStatus(err error) {
-	app.connMu.Lock()
-	defer app.connMu.Unlock()
-
 	if err == nil {
-		app.connectionRefused = false
+		app.connectionRefused.Store(false)
 		return
 	}
 
 	if errors.Is(err, syscall.ECONNREFUSED) {
-		app.connectionRefused = true
+		app.connectionRefused.Store(true)
 		app.logger.Warn("Geth connection refused")
 	}
 }

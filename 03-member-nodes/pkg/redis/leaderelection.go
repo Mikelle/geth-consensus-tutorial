@@ -8,9 +8,9 @@ import (
 )
 
 const (
-	leaderKey     = "consensus:leader"
+	leaderKey       = "consensus:leader"
 	defaultLeaseTTL = 5 * time.Second
-	renewInterval = 2 * time.Second
+	renewInterval   = 2 * time.Second
 )
 
 // LeaderElection manages leader election using Redis
