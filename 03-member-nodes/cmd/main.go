@@ -299,6 +299,11 @@ func NewMemberNodesApp(parentCtx context.Context, cfg Config, logger *slog.Logge
 
 		// API server for member sync
 		app.apiServer = api.NewServer(payloadStore, cfg.APIAddr, logger.With("component", "API"))
+
+		// Standby sync: while another node holds the lock, follow its head
+		// so a takeover builds on fresh state instead of forking the chain
+		syncEngine := &syncerEngineAdapter{client: engineCl}
+		app.syncer = syncpkg.NewSyncer(cfg.LeaderURL, payloadStore, syncEngine, logger.With("component", "StandbySyncer"))
 	}
 
 	return app, nil
@@ -386,16 +391,38 @@ func (app *MemberNodesApp) runLeaderLoop() {
 	app.logger.Info("Block production started", "instanceID", app.cfg.InstanceID)
 	app.stateManager.ResetBlockState(app.appCtx)
 
+	// Cancels the standby syncer when we acquire the lock
+	var stopSync context.CancelFunc
+
 	for {
 		select {
 		case <-app.appCtx.Done():
+			if stopSync != nil {
+				stopSync()
+			}
 			app.logger.Info("Block production stopping")
 			return
 		default:
-			// Only produce blocks if we're the leader
+			// Only produce blocks if we're the leader. While waiting for
+			// the lock, sync blocks from the current leader so our Geth
+			// stays at the head and a takeover doesn't fork the chain.
 			if !app.leaderElection.IsLeader() {
+				if stopSync == nil {
+					var syncCtx context.Context
+					syncCtx, stopSync = context.WithCancel(app.appCtx)
+					app.logger.Info("Standby: syncing from current leader", "leaderURL", app.cfg.LeaderURL)
+					app.syncer.Start(syncCtx)
+				}
 				time.Sleep(100 * time.Millisecond)
 				continue
+			}
+
+			if stopSync != nil {
+				// Acquired the lock: stop syncing, produce from the synced head
+				stopSync()
+				stopSync = nil
+				app.stateManager.ResetBlockState(app.appCtx)
+				app.logger.Info("Acquired leadership", "lastSynced", app.syncer.GetLastSynced())
 			}
 
 			err := app.produceBlock()
